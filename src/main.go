@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,44 +38,153 @@ type stringSlice []string
 func (s *stringSlice) String() string    { return strings.Join(*s, ", ") }
 func (s *stringSlice) Set(v string) error { *s = append(*s, v); return nil }
 
+type options struct {
+	prompt  string
+	output  string
+	inputs  stringSlice
+	session string
+	model   string // "flash" or "pro"
+	modelID string // full model ID from models map
+	ratio   string
+	size    string // normalized: "" or "1K"/"2K"/"4K"
+	force   bool
+}
+
 func main() {
-	prompt := flag.String("p", "", "text prompt (required)")
-	output := flag.String("o", "", "output file path (required)")
+	if err := run(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func run(args []string) error {
+	opts, err := parseAndValidateFlags(args)
+	if err != nil {
+		return err
+	}
+
+	if err := validatePaths(opts); err != nil {
+		return err
+	}
+
+	var history []*genai.Content
+	if opts.session != "" {
+		history, err = loadSession(opts.session, opts.model)
+		if err != nil {
+			return err
+		}
+	}
+
+	ctx := context.Background()
+	client, err := genai.NewClient(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create client: %v", err)
+	}
+
+	config := &genai.GenerateContentConfig{
+		ImageConfig: &genai.ImageConfig{
+			AspectRatio: opts.ratio,
+			ImageSize:   opts.size,
+		},
+	}
+
+	chat, err := client.Chats.Create(ctx, opts.modelID, config, history)
+	if err != nil {
+		return fmt.Errorf("failed to create chat: %v", err)
+	}
+
+	// Build message parts
+	var parts []genai.Part
+	parts = append(parts, genai.Part{Text: opts.prompt})
+
+	for _, path := range opts.inputs {
+		imgData, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read input image %q: %v", path, err)
+		}
+		mime, _ := mimeFromPath(path) // already validated
+		parts = append(parts, genai.Part{InlineData: &genai.Blob{MIMEType: mime, Data: imgData}})
+	}
+
+	result, err := chat.SendMessage(ctx, parts...)
+	if err != nil {
+		return fmt.Errorf("generation failed: %v", err)
+	}
+
+	text, imageData, err := extractResult(result)
+	if err != nil {
+		return err
+	}
+
+	if text != "" {
+		fmt.Println(text)
+	}
+
+	if err := os.WriteFile(opts.output, imageData, 0644); err != nil {
+		return fmt.Errorf("failed to write output: %v", err)
+	}
+	fmt.Fprintf(os.Stderr, "saved %s (%d bytes)\n", opts.output, len(imageData))
+
+	// Save session
+	sessPath := sessionPath(opts.output)
+	if opts.session != "" {
+		sessPath = opts.session
+	}
+	sessBytes, err := json.Marshal(sessionData{Model: opts.model, History: chat.History(true)})
+	if err != nil {
+		return fmt.Errorf("failed to serialize session: %v", err)
+	}
+	if err := os.WriteFile(sessPath, sessBytes, 0644); err != nil {
+		return fmt.Errorf("failed to write session: %v", err)
+	}
+	fmt.Fprintf(os.Stderr, "session: %s\n", sessPath)
+
+	return nil
+}
+
+func parseAndValidateFlags(args []string) (*options, error) {
+	fs := flag.NewFlagSet("banana", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	prompt := fs.String("p", "", "text prompt (required)")
+	output := fs.String("o", "", "output file path (required)")
 	var inputs stringSlice
-	flag.Var(&inputs, "i", "input image path (repeatable, for editing/reference)")
-	session := flag.String("s", "", "session file to continue from")
-	model := flag.String("m", "flash", "model: flash or pro")
-	ratio := flag.String("r", "1:1", "aspect ratio: 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9")
-	size := flag.String("z", "", "output size: 1k, 2k, or 4k (pro model only)")
-	force := flag.Bool("f", false, "overwrite output and session files if they exist")
-	flag.Parse()
+	fs.Var(&inputs, "i", "input image path (repeatable, for editing/reference)")
+	session := fs.String("s", "", "session file to continue from")
+	model := fs.String("m", "flash", "model: flash or pro")
+	ratio := fs.String("r", "1:1", "aspect ratio: 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9")
+	size := fs.String("z", "", "output size: 1k, 2k, or 4k (pro model only)")
+	force := fs.Bool("f", false, "overwrite output and session files if they exist")
+
+	if err := fs.Parse(args); err != nil {
+		return nil, fmt.Errorf("usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]")
+	}
+
+	if fs.NArg() > 0 {
+		return nil, fmt.Errorf("unexpected arguments: %s\nusage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]", strings.Join(fs.Args(), " "))
+	}
 
 	if strings.TrimSpace(*prompt) == "" || *output == "" {
-		fmt.Fprintln(os.Stderr, "usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]")
-		os.Exit(1)
+		return nil, fmt.Errorf("usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]")
 	}
 
 	modelID, ok := models[*model]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "unknown model %q: use \"flash\" or \"pro\"\n", *model)
-		os.Exit(1)
+		return nil, fmt.Errorf("unknown model %q: use \"flash\" or \"pro\"", *model)
 	}
 
 	if !validRatios[*ratio] {
-		fmt.Fprintf(os.Stderr, "invalid aspect ratio %q\n", *ratio)
-		os.Exit(1)
+		return nil, fmt.Errorf("invalid aspect ratio %q", *ratio)
 	}
 
 	var imageSize string
 	if *size != "" {
 		normalized := strings.ToUpper(*size)
 		if normalized != "1K" && normalized != "2K" && normalized != "4K" {
-			fmt.Fprintf(os.Stderr, "invalid size %q: use 1k, 2k, or 4k\n", *size)
-			os.Exit(1)
+			return nil, fmt.Errorf("invalid size %q: use 1k, 2k, or 4k", *size)
 		}
 		if *model != "pro" {
-			fmt.Fprintln(os.Stderr, "-z (size) requires -m pro")
-			os.Exit(1)
+			return nil, fmt.Errorf("-z (size) requires -m pro")
 		}
 		imageSize = normalized
 	}
@@ -84,129 +194,89 @@ func main() {
 		if *model == "flash" {
 			hint = "; use -m pro for up to 14"
 		}
-		fmt.Fprintf(os.Stderr, "%s supports up to %d input images, got %d%s\n", *model, max, len(inputs), hint)
-		os.Exit(1)
+		return nil, fmt.Errorf("%s supports up to %d input images, got %d%s", *model, max, len(inputs), hint)
 	}
 
 	if os.Getenv("GOOGLE_API_KEY") == "" {
-		fmt.Fprintln(os.Stderr, "GOOGLE_API_KEY is not set. Get one at https://aistudio.google.com")
-		os.Exit(1)
+		return nil, fmt.Errorf("GOOGLE_API_KEY is not set. Get one at https://aistudio.google.com")
 	}
 
 	if _, err := mimeFromPath(*output); err != nil {
-		fmt.Fprintf(os.Stderr, "output file %q has unsupported extension (supported: png, jpg/jpeg, webp, heic, heif)\n", *output)
-		os.Exit(1)
+		return nil, fmt.Errorf("output file %q has unsupported extension (supported: png, jpg/jpeg, webp, heic, heif)", *output)
 	}
 
-	if info, err := os.Stat(filepath.Dir(*output)); err != nil || !info.IsDir() {
-		fmt.Fprintf(os.Stderr, "output directory %q does not exist\n", filepath.Dir(*output))
-		os.Exit(1)
+	return &options{
+		prompt:  *prompt,
+		output:  *output,
+		inputs:  inputs,
+		session: *session,
+		model:   *model,
+		modelID: modelID,
+		ratio:   *ratio,
+		size:    imageSize,
+		force:   *force,
+	}, nil
+}
+
+func validatePaths(opts *options) error {
+	if info, err := os.Stat(filepath.Dir(opts.output)); err != nil || !info.IsDir() {
+		return fmt.Errorf("output directory %q does not exist", filepath.Dir(opts.output))
 	}
 
-	if *session != "" && filepath.Clean(*output) == filepath.Clean(*session) {
-		fmt.Fprintln(os.Stderr, "-o and -s must not point to the same file")
-		os.Exit(1)
+	if opts.session != "" && filepath.Clean(opts.output) == filepath.Clean(opts.session) {
+		return fmt.Errorf("-o and -s must not point to the same file")
 	}
 
-	if _, err := os.Stat(*output); err == nil && !*force {
-		fmt.Fprintf(os.Stderr, "output file %q already exists (use -f to overwrite)\n", *output)
-		os.Exit(1)
+	if _, err := os.Stat(opts.output); err == nil && !opts.force {
+		return fmt.Errorf("output file %q already exists (use -f to overwrite)", opts.output)
 	}
 
-	if *session == "" {
-		if _, err := os.Stat(sessionPath(*output)); err == nil && !*force {
-			fmt.Fprintf(os.Stderr, "session file %q already exists (use -f to overwrite)\n", sessionPath(*output))
-			os.Exit(1)
+	if opts.session == "" {
+		if _, err := os.Stat(sessionPath(opts.output)); err == nil && !opts.force {
+			return fmt.Errorf("session file %q already exists (use -f to overwrite)", sessionPath(opts.output))
 		}
 	}
 
-	for _, path := range inputs {
+	for _, path := range opts.inputs {
 		info, err := os.Stat(path)
 		if errors.Is(err, os.ErrNotExist) {
-			fmt.Fprintf(os.Stderr, "input file %q does not exist\n", path)
-			os.Exit(1)
+			return fmt.Errorf("input file %q does not exist", path)
 		} else if err != nil {
-			fmt.Fprintf(os.Stderr, "cannot access input file %q: %v\n", path, err)
-			os.Exit(1)
+			return fmt.Errorf("cannot access input file %q: %v", path, err)
 		}
 		if _, err := mimeFromPath(path); err != nil {
-			fmt.Fprintf(os.Stderr, "input file %q has unsupported extension (supported: png, jpg/jpeg, webp, heic, heif)\n", path)
-			os.Exit(1)
+			return fmt.Errorf("input file %q has unsupported extension (supported: png, jpg/jpeg, webp, heic, heif)", path)
 		}
 		if info.Size() > maxInputFileSize {
-			fmt.Fprintf(os.Stderr, "input file %q is %.1f MB, exceeds 7 MB inline limit\n", path, float64(info.Size())/(1024*1024))
-			os.Exit(1)
+			return fmt.Errorf("input file %q is %.1f MB, exceeds 7 MB inline limit", path, float64(info.Size())/(1024*1024))
 		}
 	}
 
-	// Load session history if continuing
-	var history []*genai.Content
-	if *session != "" {
-		raw, err := os.ReadFile(*session)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to read session %q: %v\n", *session, err)
-			os.Exit(1)
-		}
-		var sess sessionData
-		if err := json.Unmarshal(raw, &sess); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to parse session %q: %v\n", *session, err)
-			os.Exit(1)
-		}
-		if sess.Model != "" && sess.Model != *model {
-			fmt.Fprintf(os.Stderr, "session was created with %q but -m is %q; pass -m %s to continue this session\n", sess.Model, *model, sess.Model)
-			os.Exit(1)
-		}
-		history = sess.History
-	}
+	return nil
+}
 
-	ctx := context.Background()
-	client, err := genai.NewClient(ctx, nil)
+func loadSession(path, model string) ([]*genai.Content, error) {
+	raw, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create client: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to read session %q: %v", path, err)
 	}
-
-	config := &genai.GenerateContentConfig{
-		ImageConfig: &genai.ImageConfig{
-			AspectRatio: *ratio,
-			ImageSize:   imageSize,
-		},
+	var sess sessionData
+	if err := json.Unmarshal(raw, &sess); err != nil {
+		return nil, fmt.Errorf("failed to parse session %q: %v", path, err)
 	}
-
-	chat, err := client.Chats.Create(ctx, modelID, config, history)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create chat: %v\n", err)
-		os.Exit(1)
+	if sess.Model != "" && sess.Model != model {
+		return nil, fmt.Errorf("session was created with %q but -m is %q; pass -m %s to continue this session", sess.Model, model, sess.Model)
 	}
+	return sess.History, nil
+}
 
-	// Build message parts
-	var parts []genai.Part
-	parts = append(parts, genai.Part{Text: *prompt})
-
-	for _, path := range inputs {
-		imgData, err := os.ReadFile(path)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to read input image %q: %v\n", path, err)
-			os.Exit(1)
-		}
-		mime, _ := mimeFromPath(path) // already validated
-		parts = append(parts, genai.Part{InlineData: &genai.Blob{MIMEType: mime, Data: imgData}})
-	}
-
-	result, err := chat.SendMessage(ctx, parts...)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "generation failed: %v\n", err)
-		os.Exit(1)
-	}
-
+func extractResult(result *genai.GenerateContentResponse) (string, []byte, error) {
 	if result == nil || len(result.Candidates) == 0 {
 		if result != nil && result.PromptFeedback != nil && result.PromptFeedback.BlockReason != "" {
-			fmt.Fprintf(os.Stderr, "prompt blocked (reason: %s)\n", result.PromptFeedback.BlockReason)
-		} else {
-			debug, _ := json.MarshalIndent(result, "", "  ")
-			fmt.Fprintf(os.Stderr, "no response from model; raw response:\n%s\n", debug)
+			return "", nil, fmt.Errorf("prompt blocked (reason: %s)", result.PromptFeedback.BlockReason)
 		}
-		os.Exit(1)
+		debug, _ := json.MarshalIndent(result, "", "  ")
+		return "", nil, fmt.Errorf("no response from model; raw response:\n%s", debug)
 	}
 
 	candidate := result.Candidates[0]
@@ -215,47 +285,30 @@ func main() {
 		if candidate.FinishReason != "" {
 			reason = string(candidate.FinishReason)
 		}
-		fmt.Fprintf(os.Stderr, "generation blocked (reason: %s)\n", reason)
-		os.Exit(1)
+		return "", nil, fmt.Errorf("generation blocked (reason: %s)", reason)
 	}
 
-	saved := false
+	var textBuf strings.Builder
+	var imageData []byte
 	for _, part := range candidate.Content.Parts {
 		if part == nil {
 			continue
 		}
 		if part.Text != "" && !part.Thought {
-			fmt.Println(part.Text)
-		} else if part.InlineData != nil && len(part.InlineData.Data) > 0 && !saved {
-			if err := os.WriteFile(*output, part.InlineData.Data, 0644); err != nil {
-				fmt.Fprintf(os.Stderr, "failed to write output: %v\n", err)
-				os.Exit(1)
+			if textBuf.Len() > 0 {
+				textBuf.WriteByte('\n')
 			}
-			fmt.Fprintf(os.Stderr, "saved %s (%d bytes)\n", *output, len(part.InlineData.Data))
-			saved = true
+			textBuf.WriteString(part.Text)
+		} else if part.InlineData != nil && len(part.InlineData.Data) > 0 && imageData == nil {
+			imageData = part.InlineData.Data
 		}
 	}
 
-	if !saved {
-		fmt.Fprintln(os.Stderr, "model returned no image data")
-		os.Exit(1)
+	if imageData == nil {
+		return "", nil, fmt.Errorf("model returned no image data")
 	}
 
-	// Save session
-	sessPath := sessionPath(*output)
-	if *session != "" {
-		sessPath = *session
-	}
-	sessData, err := json.Marshal(sessionData{Model: *model, History: chat.History(true)})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to serialize session: %v\n", err)
-		os.Exit(1)
-	}
-	if err := os.WriteFile(sessPath, sessData, 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write session: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Fprintf(os.Stderr, "session: %s\n", sessPath)
+	return textBuf.String(), imageData, nil
 }
 
 func sessionPath(outputPath string) string {
