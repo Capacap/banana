@@ -46,10 +46,10 @@ func main() {
 	model := flag.String("m", "flash", "model: flash or pro")
 	ratio := flag.String("r", "1:1", "aspect ratio: 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9")
 	size := flag.String("z", "", "output size: 1k, 2k, or 4k (pro model only)")
-	force := flag.Bool("f", false, "overwrite output file if it exists")
+	force := flag.Bool("f", false, "overwrite output and session files if they exist")
 	flag.Parse()
 
-	if *prompt == "" || *output == "" {
+	if strings.TrimSpace(*prompt) == "" || *output == "" {
 		fmt.Fprintln(os.Stderr, "usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]")
 		os.Exit(1)
 	}
@@ -103,6 +103,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *session != "" && filepath.Clean(*output) == filepath.Clean(*session) {
+		fmt.Fprintln(os.Stderr, "-o and -s must not point to the same file")
+		os.Exit(1)
+	}
+
 	if _, err := os.Stat(*output); err == nil && !*force {
 		fmt.Fprintf(os.Stderr, "output file %q already exists (use -f to overwrite)\n", *output)
 		os.Exit(1)
@@ -147,20 +152,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "failed to parse session %q: %v\n", *session, err)
 			os.Exit(1)
 		}
-		if len(sess.History) > 0 {
-			// New format with metadata
-			if sess.Model != "" && sess.Model != *model {
-				fmt.Fprintf(os.Stderr, "session was created with %q but -m is %q; pass -m %s to continue this session\n", sess.Model, *model, sess.Model)
-				os.Exit(1)
-			}
-			history = sess.History
-		} else {
-			// Legacy format: raw []*genai.Content
-			if err := json.Unmarshal(raw, &history); err != nil {
-				fmt.Fprintf(os.Stderr, "failed to parse session %q: %v\n", *session, err)
-				os.Exit(1)
-			}
+		if sess.Model != "" && sess.Model != *model {
+			fmt.Fprintf(os.Stderr, "session was created with %q but -m is %q; pass -m %s to continue this session\n", sess.Model, *model, sess.Model)
+			os.Exit(1)
 		}
+		history = sess.History
 	}
 
 	ctx := context.Background()
@@ -207,7 +203,8 @@ func main() {
 		if result != nil && result.PromptFeedback != nil && result.PromptFeedback.BlockReason != "" {
 			fmt.Fprintf(os.Stderr, "prompt blocked (reason: %s)\n", result.PromptFeedback.BlockReason)
 		} else {
-			fmt.Fprintln(os.Stderr, "no response from model")
+			debug, _ := json.MarshalIndent(result, "", "  ")
+			fmt.Fprintf(os.Stderr, "no response from model; raw response:\n%s\n", debug)
 		}
 		os.Exit(1)
 	}
@@ -227,9 +224,9 @@ func main() {
 		if part == nil {
 			continue
 		}
-		if part.Text != "" {
+		if part.Text != "" && !part.Thought {
 			fmt.Println(part.Text)
-		} else if part.InlineData != nil && !saved {
+		} else if part.InlineData != nil && len(part.InlineData.Data) > 0 && !saved {
 			if err := os.WriteFile(*output, part.InlineData.Data, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "failed to write output: %v\n", err)
 				os.Exit(1)
