@@ -41,19 +41,21 @@ Delete the skill directory. Optionally remove `GOOGLE_API_KEY` from your environ
 ## CLI reference
 
 ```
-banana -p <prompt> -o <output> [-i <input>] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]
+banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]
 ```
 
 | Flag | Required | Description |
 |------|----------|-------------|
 | `-p` | yes | Text prompt |
 | `-o` | yes | Output file path (png, jpg, webp) |
-| `-i` | no | Input image for editing |
+| `-i` | no | Input image for editing/reference (repeatable) |
 | `-s` | no | Session file to continue from |
 | `-m` | no | Model: `flash` (default) or `pro` |
 | `-r` | no | Aspect ratio (default `1:1`). Options: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` |
 | `-z` | no | Output resolution: `1k`, `2k`, or `4k` (requires `-m pro`) |
 | `-f` | no | Overwrite output file if it already exists |
+
+Pass `-i` multiple times to provide several reference images. Flash supports up to 3, Pro up to 14. Each input file must be under 7 MB.
 
 ### Sessions
 
@@ -66,7 +68,7 @@ Every generation produces a session file alongside the output (e.g., `out.png` c
 | Gemini 2.5 Flash Image | `-m flash` | ~4s | No (1K only) |
 | Gemini 3 Pro Image Preview | `-m pro` | ~8-12s | Yes (`-z 1k\|2k\|4k`) |
 
-Flash is the default. Pro is selected when the task requires text rendering, high resolution, or multiple reference images.
+Flash is the default. Pro is selected when the task requires text rendering, high resolution, or more than 3 reference images.
 
 ## Project structure
 

@@ -14,7 +14,7 @@ The goal is an image that matches the user's intent. Phases build toward this: P
 
 Determine the task type: text-to-image generation, editing an existing image, iterating on a previous generation, or generating images with rendered text (posters, signs, logos, diagrams). For generation, identify the subject, desired style, mood, and technical requirements. For editing, identify the source image, what should change, and what must be preserved. For iteration, identify the session file from the previous generation and what the user wants changed. For text-in-image, identify the exact text content, placement, and font characteristics; this task type should default to Pro for reliable text rendering.
 
-Choose the model. Flash (default) handles most tasks and costs less. Pro produces higher fidelity at higher cost. Use flash unless the user requests pro or the task demands it. Concrete triggers for Pro: the image contains rendered text (Pro has under 10% error rate; Flash is unreliable), the user needs high resolution (Pro supports 2K/4K; Flash is 1K only), the prompt references multiple input images (Pro handles up to 14; Flash handles 3), or previous flash attempts produced unsatisfactory results.
+Choose the model. Flash (default) handles most tasks and costs less. Pro produces higher fidelity at higher cost. Use flash unless the user requests pro or the task demands it. Concrete triggers for Pro: the image contains rendered text (Pro has under 10% error rate; Flash is unreliable), the user needs high resolution (Pro supports 2K/4K; Flash is 1K only), the task requires more than 3 reference images (Pro handles up to 14; Flash handles up to 3), or previous flash attempts produced unsatisfactory results.
 
 Choose the aspect ratio from the supported set: 1:1 (default), 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9. Match the ratio to the content. Portraits suit 2:3 or 3:4. Landscapes suit 16:9 or 3:2. Social media stories suit 9:16. Cinematic scenes suit 21:9. Square works for icons, avatars, and when orientation is unimportant.
 
@@ -46,6 +46,8 @@ Do not use diffusion-model conventions. Quality tags like "4k, masterpiece, hype
 
 For editing prompts, be explicit about preservation. State what should change and what must remain untouched. The model understands physics: changing time of day automatically adjusts shadows and reflections. But explicit preservation boundaries prevent unwanted changes to elements the user cares about. Make one edit per turn rather than stacking multiple changes; faces are especially sensitive to drift when too much changes at once.
 
+For multi-image reference, pass each image with a separate `-i` flag. Use cases: style transfer from multiple sources, combining elements from different photos, character consistency across scenes, or providing object references for composition. In the prompt, refer to each image by its role ("the first image shows the character, the second shows the environment"). Flash accepts up to 3 reference images; if the task needs more, switch to Pro.
+
 # Phase 3: Approval
 
 Present the complete banana command to the user before executing. Include the constructed prompt, the chosen model with brief rationale, the aspect ratio, and for editing the input image path. Format the command so the user can read the prompt clearly.
@@ -59,16 +61,18 @@ The `banana` binary lives in this skill's directory. Construct the path from the
 Run the banana command. The CLI syntax:
 
 ```
-<skill-dir>/banana -p <prompt> -o <output> [-i <input>] [-s <session>] [-m flash|pro] [-r <ratio>]
+<skill-dir>/banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]
 ```
 
 Flags:
 - `-p` text prompt (required)
 - `-o` output file path (required; must end in .png, .jpg, .webp, .heic, or .heif)
-- `-i` input image path for editing (optional)
+- `-i` input image for editing/reference (optional, repeatable). Flash: up to 3 images. Pro: up to 14. Each file must be under 7 MB.
 - `-s` session file to continue from (optional)
 - `-m` model: flash (default) or pro
 - `-r` aspect ratio (default 1:1)
+- `-z` output resolution: 1k, 2k, or 4k (pro only)
+- `-f` overwrite output file if it exists
 
 Every invocation produces a session file alongside the output image (`cat.png` creates `cat.session.json`). This session file contains the full conversation history and can be used to continue iterating.
 

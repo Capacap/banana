@@ -23,10 +23,20 @@ var validRatios = map[string]bool{
 	"4:5": true, "5:4": true, "9:16": true, "16:9": true, "21:9": true,
 }
 
+var maxInputImages = map[string]int{"flash": 3, "pro": 14}
+
+const maxInputFileSize = 7 * 1024 * 1024 // 7 MB inline limit
+
+type stringSlice []string
+
+func (s *stringSlice) String() string    { return strings.Join(*s, ", ") }
+func (s *stringSlice) Set(v string) error { *s = append(*s, v); return nil }
+
 func main() {
 	prompt := flag.String("p", "", "text prompt (required)")
 	output := flag.String("o", "", "output file path (required)")
-	input := flag.String("i", "", "input image path (for editing)")
+	var inputs stringSlice
+	flag.Var(&inputs, "i", "input image path (repeatable, for editing/reference)")
 	session := flag.String("s", "", "session file to continue from")
 	model := flag.String("m", "flash", "model: flash or pro")
 	ratio := flag.String("r", "1:1", "aspect ratio: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9")
@@ -35,7 +45,7 @@ func main() {
 	flag.Parse()
 
 	if *prompt == "" || *output == "" {
-		fmt.Fprintln(os.Stderr, "usage: banana -p <prompt> -o <output> [-i <input>] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]")
+		fmt.Fprintln(os.Stderr, "usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]")
 		os.Exit(1)
 	}
 
@@ -64,6 +74,15 @@ func main() {
 		imageSize = normalized
 	}
 
+	if max := maxInputImages[*model]; len(inputs) > max {
+		hint := ""
+		if *model == "flash" {
+			hint = "; use -m pro for up to 14"
+		}
+		fmt.Fprintf(os.Stderr, "%s supports up to %d input images, got %d%s\n", *model, max, len(inputs), hint)
+		os.Exit(1)
+	}
+
 	if os.Getenv("GOOGLE_API_KEY") == "" {
 		fmt.Fprintln(os.Stderr, "GOOGLE_API_KEY is not set. Get one at https://aistudio.google.com")
 		os.Exit(1)
@@ -84,12 +103,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *input != "" {
-		if _, err := os.Stat(*input); errors.Is(err, os.ErrNotExist) {
-			fmt.Fprintf(os.Stderr, "input file %q does not exist\n", *input)
+	for _, path := range inputs {
+		info, err := os.Stat(path)
+		if errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintf(os.Stderr, "input file %q does not exist\n", path)
 			os.Exit(1)
 		} else if err != nil {
-			fmt.Fprintf(os.Stderr, "cannot access input file %q: %v\n", *input, err)
+			fmt.Fprintf(os.Stderr, "cannot access input file %q: %v\n", path, err)
+			os.Exit(1)
+		}
+		if _, err := mimeFromPath(path); err != nil {
+			fmt.Fprintf(os.Stderr, "input file %q has unsupported extension (supported: png, jpg, webp, heic, heif)\n", path)
+			os.Exit(1)
+		}
+		if info.Size() > maxInputFileSize {
+			fmt.Fprintf(os.Stderr, "input file %q is %.1f MB, exceeds 7 MB inline limit\n", path, float64(info.Size())/(1024*1024))
 			os.Exit(1)
 		}
 	}
@@ -132,17 +160,13 @@ func main() {
 	var parts []genai.Part
 	parts = append(parts, *genai.NewPartFromText(*prompt))
 
-	if *input != "" {
-		imgData, err := os.ReadFile(*input)
+	for _, path := range inputs {
+		imgData, err := os.ReadFile(path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to read input image: %v\n", err)
+			fmt.Fprintf(os.Stderr, "failed to read input image %q: %v\n", path, err)
 			os.Exit(1)
 		}
-		mime, err := mimeFromPath(*input)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(1)
-		}
+		mime, _ := mimeFromPath(path) // already validated
 		parts = append(parts, genai.Part{InlineData: &genai.Blob{MIMEType: mime, Data: imgData}})
 	}
 
