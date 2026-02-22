@@ -29,10 +29,11 @@ func main() {
 	session := flag.String("s", "", "session file to continue from")
 	model := flag.String("m", "flash", "model: flash or pro")
 	ratio := flag.String("r", "1:1", "aspect ratio: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9")
+	size := flag.String("z", "", "output size: 1k, 2k, or 4k (pro model only)")
 	flag.Parse()
 
 	if *prompt == "" || *output == "" {
-		fmt.Fprintln(os.Stderr, "usage: banana -p <prompt> -o <output> [-i <input>] [-s <session>] [-m flash|pro] [-r <ratio>]")
+		fmt.Fprintln(os.Stderr, "usage: banana -p <prompt> -o <output> [-i <input>] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k]")
 		os.Exit(1)
 	}
 
@@ -45,6 +46,20 @@ func main() {
 	if !validRatios[*ratio] {
 		fmt.Fprintf(os.Stderr, "invalid aspect ratio %q\n", *ratio)
 		os.Exit(1)
+	}
+
+	var imageSize string
+	if *size != "" {
+		normalized := strings.ToUpper(*size)
+		if normalized != "1K" && normalized != "2K" && normalized != "4K" {
+			fmt.Fprintf(os.Stderr, "invalid size %q: use 1k, 2k, or 4k\n", *size)
+			os.Exit(1)
+		}
+		if *model != "pro" {
+			fmt.Fprintln(os.Stderr, "-z (size) requires -m pro")
+			os.Exit(1)
+		}
+		imageSize = normalized
 	}
 
 	// Load session history if continuing
@@ -71,6 +86,7 @@ func main() {
 	config := &genai.GenerateContentConfig{
 		ImageConfig: &genai.ImageConfig{
 			AspectRatio: *ratio,
+			ImageSize:   imageSize,
 		},
 	}
 
