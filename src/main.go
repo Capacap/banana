@@ -125,11 +125,8 @@ func run(args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "saved %s (%d bytes)\n", opts.output, len(imageData))
 
-	// Save session
+	// Save session alongside output (never overwrite the source session)
 	sessPath := sessionPath(opts.output)
-	if opts.session != "" {
-		sessPath = opts.session
-	}
 	sessBytes, err := json.Marshal(sessionData{Model: opts.model, History: chat.History(true)})
 	if err != nil {
 		return fmt.Errorf("failed to serialize session: %v", err)
@@ -231,10 +228,8 @@ func validatePaths(opts *options) error {
 		return fmt.Errorf("output file %q already exists (use -f to overwrite)", opts.output)
 	}
 
-	if opts.session == "" {
-		if _, err := os.Stat(sessionPath(opts.output)); err == nil && !opts.force {
-			return fmt.Errorf("session file %q already exists (use -f to overwrite)", sessionPath(opts.output))
-		}
+	if _, err := os.Stat(sessionPath(opts.output)); err == nil && !opts.force {
+		return fmt.Errorf("session file %q already exists (use -f to overwrite)", sessionPath(opts.output))
 	}
 
 	for _, path := range opts.inputs {

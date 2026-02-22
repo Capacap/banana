@@ -249,13 +249,14 @@ func TestValidatePaths(t *testing.T) {
 			wantErr: "exceeds 7 MB",
 		},
 		{
-			name: "session collision skipped when session provided",
+			name: "session collision checked even with session flag",
 			setup: func(t *testing.T) *options {
 				dir := t.TempDir()
 				outPath := filepath.Join(dir, "out.png")
 				os.WriteFile(sessionPath(outPath), []byte("{}"), 0644)
 				return &options{output: outPath, session: filepath.Join(dir, "other.json")}
 			},
+			wantErr: "already exists",
 		},
 		{
 			name: "all valid",
