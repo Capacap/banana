@@ -51,7 +51,7 @@ banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r
 | `-i` | no | Input image for editing/reference (repeatable) |
 | `-s` | no | Session file to continue from |
 | `-m` | no | Model: `flash` (default) or `pro` |
-| `-r` | no | Aspect ratio (default `1:1`). Options: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` |
+| `-r` | no | Aspect ratio (default `1:1`). Options: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `9:16`, `16:9`, `21:9` |
 | `-z` | no | Output resolution: `1k`, `2k`, or `4k` (requires `-m pro`) |
 | `-f` | no | Overwrite output file if it already exists |
 
@@ -59,7 +59,7 @@ Pass `-i` multiple times to provide several reference images. Flash supports up 
 
 ### Sessions
 
-Every generation produces a session file alongside the output (e.g., `out.png` creates `out.session.json`). Passing this file with `-s` continues the conversation, letting the agent refine results incrementally without re-describing the entire scene.
+Every generation produces a session file alongside the output (e.g., `out.png` creates `out.session.json`). The session file records the model name and conversation history. Passing it with `-s` continues the conversation and updates the session file in place. The CLI validates that the session's model matches the current `-m` flag to prevent accidental cross-model continuation.
 
 ### Models
 

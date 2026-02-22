@@ -16,7 +16,7 @@ Determine the task type: text-to-image generation, editing an existing image, it
 
 Choose the model. Flash (default) handles most tasks and costs less. Pro produces higher fidelity at higher cost. Use flash unless the user requests pro or the task demands it. Concrete triggers for Pro: the image contains rendered text (Pro has under 10% error rate; Flash is unreliable), the user needs high resolution (Pro supports 2K/4K; Flash is 1K only), the task requires more than 3 reference images (Pro handles up to 14; Flash handles up to 3), or previous flash attempts produced unsatisfactory results.
 
-Choose the aspect ratio from the supported set: 1:1 (default), 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9. Match the ratio to the content. Portraits suit 2:3 or 3:4. Landscapes suit 16:9 or 3:2. Social media stories suit 9:16. Cinematic scenes suit 21:9. Square works for icons, avatars, and when orientation is unimportant.
+Choose the aspect ratio from the supported set: 1:1 (default), 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9. Match the ratio to the content. Portraits suit 2:3 or 3:4. Landscapes suit 16:9 or 3:2. Social media stories suit 9:16. Cinematic scenes suit 21:9. Square works for icons, avatars, and when orientation is unimportant.
 
 If the user's request is too vague to construct a strong prompt, ask focused questions about the missing elements rather than guessing. A portrait needs lighting and mood. A product shot needs surface and angle. An illustration needs style and palette.
 
@@ -74,13 +74,13 @@ Flags:
 - `-z` output resolution: 1k, 2k, or 4k (pro only)
 - `-f` overwrite output file if it exists
 
-Every invocation produces a session file alongside the output image (`cat.png` creates `cat.session.json`). This session file contains the full conversation history and can be used to continue iterating.
+Every invocation produces a session file alongside the output image (`cat.png` creates `cat.session.json`). This session file contains the model name and full conversation history. When continuing with `-s`, the session file is updated in place rather than creating a new one derived from `-o`.
 
 Choose an output filename that reflects the content. Place output in the current working directory unless the user specifies otherwise.
 
 After execution, report the result: file path, size, and session file path. If generation was blocked by safety filters, try these strategies before reporting failure: rephrase with explicit context ("family-friendly poster," "educational diagram," "medical illustration"), use positive framing instead of exclusion language, crop input images tighter to reduce incidental flagged content, or retry with slight rewording since the filter has some randomness. If these fail, report the block reason and the strategies attempted so the user can adjust.
 
-If the user wants changes, use the session file from the previous generation with `-s` rather than starting fresh. This preserves conversation context so the model understands references like "make it warmer" or "change the hat." Construct a short, conversational follow-up prompt rather than repeating the full original description. Choose a new output filename that reflects the iteration (e.g., `cat_v2.png`, `cat_blue.png`).
+If the user wants changes, use the session file from the previous generation with `-s` rather than starting fresh. This preserves conversation context so the model understands references like "make it warmer" or "change the hat." The `-s` flag updates the session file in place, so `cat.session.json` always reflects the latest turn of that conversation. Construct a short, conversational follow-up prompt rather than repeating the full original description. Choose a new output filename that reflects the iteration (e.g., `cat_v2.png`, `cat_blue.png`).
 
 The user can also rewind by referencing an earlier session file. If v3 went wrong, continuing from `cat_v1.session.json` branches from that point without losing v2 or v3.
 

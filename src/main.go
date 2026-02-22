@@ -20,12 +20,17 @@ var models = map[string]string{
 
 var validRatios = map[string]bool{
 	"1:1": true, "2:3": true, "3:2": true, "3:4": true, "4:3": true,
-	"4:5": true, "5:4": true, "9:16": true, "16:9": true, "21:9": true,
+	"9:16": true, "16:9": true, "21:9": true,
 }
 
 var maxInputImages = map[string]int{"flash": 3, "pro": 14}
 
 const maxInputFileSize = 7 * 1024 * 1024 // 7 MB inline limit
+
+type sessionData struct {
+	Model   string           `json:"model"`
+	History []*genai.Content `json:"history"`
+}
 
 type stringSlice []string
 
@@ -39,7 +44,7 @@ func main() {
 	flag.Var(&inputs, "i", "input image path (repeatable, for editing/reference)")
 	session := flag.String("s", "", "session file to continue from")
 	model := flag.String("m", "flash", "model: flash or pro")
-	ratio := flag.String("r", "1:1", "aspect ratio: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9")
+	ratio := flag.String("r", "1:1", "aspect ratio: 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9")
 	size := flag.String("z", "", "output size: 1k, 2k, or 4k (pro model only)")
 	force := flag.Bool("f", false, "overwrite output file if it exists")
 	flag.Parse()
@@ -89,7 +94,7 @@ func main() {
 	}
 
 	if _, err := mimeFromPath(*output); err != nil {
-		fmt.Fprintf(os.Stderr, "output file %q has unsupported extension (supported: png, jpg, webp, heic, heif)\n", *output)
+		fmt.Fprintf(os.Stderr, "output file %q has unsupported extension (supported: png, jpg/jpeg, webp, heic, heif)\n", *output)
 		os.Exit(1)
 	}
 
@@ -103,6 +108,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *session == "" {
+		if _, err := os.Stat(sessionPath(*output)); err == nil && !*force {
+			fmt.Fprintf(os.Stderr, "session file %q already exists (use -f to overwrite)\n", sessionPath(*output))
+			os.Exit(1)
+		}
+	}
+
 	for _, path := range inputs {
 		info, err := os.Stat(path)
 		if errors.Is(err, os.ErrNotExist) {
@@ -113,7 +125,7 @@ func main() {
 			os.Exit(1)
 		}
 		if _, err := mimeFromPath(path); err != nil {
-			fmt.Fprintf(os.Stderr, "input file %q has unsupported extension (supported: png, jpg, webp, heic, heif)\n", path)
+			fmt.Fprintf(os.Stderr, "input file %q has unsupported extension (supported: png, jpg/jpeg, webp, heic, heif)\n", path)
 			os.Exit(1)
 		}
 		if info.Size() > maxInputFileSize {
@@ -130,9 +142,24 @@ func main() {
 			fmt.Fprintf(os.Stderr, "failed to read session %q: %v\n", *session, err)
 			os.Exit(1)
 		}
-		if err := json.Unmarshal(raw, &history); err != nil {
+		var sess sessionData
+		if err := json.Unmarshal(raw, &sess); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to parse session %q: %v\n", *session, err)
 			os.Exit(1)
+		}
+		if len(sess.History) > 0 {
+			// New format with metadata
+			if sess.Model != "" && sess.Model != *model {
+				fmt.Fprintf(os.Stderr, "session was created with %q but -m is %q; pass -m %s to continue this session\n", sess.Model, *model, sess.Model)
+				os.Exit(1)
+			}
+			history = sess.History
+		} else {
+			// Legacy format: raw []*genai.Content
+			if err := json.Unmarshal(raw, &history); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to parse session %q: %v\n", *session, err)
+				os.Exit(1)
+			}
 		}
 	}
 
@@ -158,7 +185,7 @@ func main() {
 
 	// Build message parts
 	var parts []genai.Part
-	parts = append(parts, *genai.NewPartFromText(*prompt))
+	parts = append(parts, genai.Part{Text: *prompt})
 
 	for _, path := range inputs {
 		imgData, err := os.ReadFile(path)
@@ -177,7 +204,11 @@ func main() {
 	}
 
 	if result == nil || len(result.Candidates) == 0 {
-		fmt.Fprintln(os.Stderr, "no response from model")
+		if result != nil && result.PromptFeedback != nil && result.PromptFeedback.BlockReason != "" {
+			fmt.Fprintf(os.Stderr, "prompt blocked (reason: %s)\n", result.PromptFeedback.BlockReason)
+		} else {
+			fmt.Fprintln(os.Stderr, "no response from model")
+		}
 		os.Exit(1)
 	}
 
@@ -193,14 +224,17 @@ func main() {
 
 	saved := false
 	for _, part := range candidate.Content.Parts {
+		if part == nil {
+			continue
+		}
 		if part.Text != "" {
 			fmt.Println(part.Text)
-		} else if part.InlineData != nil {
+		} else if part.InlineData != nil && !saved {
 			if err := os.WriteFile(*output, part.InlineData.Data, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "failed to write output: %v\n", err)
 				os.Exit(1)
 			}
-			fmt.Printf("saved %s (%d bytes)\n", *output, len(part.InlineData.Data))
+			fmt.Fprintf(os.Stderr, "saved %s (%d bytes)\n", *output, len(part.InlineData.Data))
 			saved = true
 		}
 	}
@@ -212,16 +246,19 @@ func main() {
 
 	// Save session
 	sessPath := sessionPath(*output)
-	historyData, err := json.Marshal(chat.History(false))
+	if *session != "" {
+		sessPath = *session
+	}
+	sessData, err := json.Marshal(sessionData{Model: *model, History: chat.History(true)})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to serialize session: %v\n", err)
 		os.Exit(1)
 	}
-	if err := os.WriteFile(sessPath, historyData, 0644); err != nil {
+	if err := os.WriteFile(sessPath, sessData, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to write session: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("session: %s\n", sessPath)
+	fmt.Fprintf(os.Stderr, "session: %s\n", sessPath)
 }
 
 func sessionPath(outputPath string) string {
@@ -242,7 +279,7 @@ func mimeFromPath(path string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	mime, ok := supportedMimes[ext]
 	if !ok {
-		return "", fmt.Errorf("unsupported image format %q (supported: png, jpg, webp, heic, heif)", ext)
+		return "", fmt.Errorf("unsupported image format %q (supported: png, jpg/jpeg, webp, heic, heif)", ext)
 	}
 	return mime, nil
 }
