@@ -41,7 +41,7 @@ Delete the skill directory. Optionally remove `GOOGLE_API_KEY` from your environ
 ## CLI reference
 
 ```
-banana -p <prompt> -o <output> [-i <input>] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k]
+banana -p <prompt> -o <output> [-i <input>] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]
 ```
 
 | Flag | Required | Description |
@@ -53,6 +53,7 @@ banana -p <prompt> -o <output> [-i <input>] [-s <session>] [-m flash|pro] [-r <r
 | `-m` | no | Model: `flash` (default) or `pro` |
 | `-r` | no | Aspect ratio (default `1:1`). Options: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` |
 | `-z` | no | Output resolution: `1k`, `2k`, or `4k` (requires `-m pro`) |
+| `-f` | no | Overwrite output file if it already exists |
 
 ### Sessions
 

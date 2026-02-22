@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -30,10 +31,11 @@ func main() {
 	model := flag.String("m", "flash", "model: flash or pro")
 	ratio := flag.String("r", "1:1", "aspect ratio: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9")
 	size := flag.String("z", "", "output size: 1k, 2k, or 4k (pro model only)")
+	force := flag.Bool("f", false, "overwrite output file if it exists")
 	flag.Parse()
 
 	if *prompt == "" || *output == "" {
-		fmt.Fprintln(os.Stderr, "usage: banana -p <prompt> -o <output> [-i <input>] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k]")
+		fmt.Fprintln(os.Stderr, "usage: banana -p <prompt> -o <output> [-i <input>] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]")
 		os.Exit(1)
 	}
 
@@ -60,6 +62,36 @@ func main() {
 			os.Exit(1)
 		}
 		imageSize = normalized
+	}
+
+	if os.Getenv("GOOGLE_API_KEY") == "" {
+		fmt.Fprintln(os.Stderr, "GOOGLE_API_KEY is not set. Get one at https://aistudio.google.com")
+		os.Exit(1)
+	}
+
+	if _, err := mimeFromPath(*output); err != nil {
+		fmt.Fprintf(os.Stderr, "output file %q has unsupported extension (supported: png, jpg, webp, heic, heif)\n", *output)
+		os.Exit(1)
+	}
+
+	if info, err := os.Stat(filepath.Dir(*output)); err != nil || !info.IsDir() {
+		fmt.Fprintf(os.Stderr, "output directory %q does not exist\n", filepath.Dir(*output))
+		os.Exit(1)
+	}
+
+	if _, err := os.Stat(*output); err == nil && !*force {
+		fmt.Fprintf(os.Stderr, "output file %q already exists (use -f to overwrite)\n", *output)
+		os.Exit(1)
+	}
+
+	if *input != "" {
+		if _, err := os.Stat(*input); errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintf(os.Stderr, "input file %q does not exist\n", *input)
+			os.Exit(1)
+		} else if err != nil {
+			fmt.Fprintf(os.Stderr, "cannot access input file %q: %v\n", *input, err)
+			os.Exit(1)
+		}
 	}
 
 	// Load session history if continuing
