@@ -61,6 +61,17 @@ Pass `-i` multiple times to provide several reference images. Flash supports up 
 
 Every generation produces a session file alongside the output (e.g., `out.png` creates `out.session.json`). The session file records the model name and conversation history. Passing it with `-s` continues the conversation and updates the session file in place. The CLI validates that the session's model matches the current `-m` flag to prevent accidental cross-model continuation.
 
+### Cleanup
+
+Session files accumulate during iterative work. The `clean` subcommand scans a directory for session files, validates them, and reports what it finds.
+
+```
+banana clean <directory>        # dry run: list files and sizes
+banana clean -f <directory>     # delete validated session files
+```
+
+Without `-f`, nothing is deleted. The listing shows model, turn count, and size for each file. Files that fail validation (corrupt JSON, unknown structure) are skipped with a warning and never deleted.
+
 ### Models
 
 | Model | Flag | Speed | Resolution control |
