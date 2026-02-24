@@ -185,6 +185,55 @@ Editing multiple elements in one turn increases drift. Faces are especially sens
 
 The model generates something new with every call. Without explicit consistency measures (reference images, session continuity, detailed character descriptions), faces and details will vary between generations.
 
+## Model Behavior and Escalation
+
+### General Guidance (All Models)
+
+**Generate multi-view references as separate images.** Requesting multiple views of the same character in a single image (front and side, front and back) causes inconsistency between views. Clothing details, proportions, and accessories will differ between the two figures. Generate each view as its own image for reliable results.
+
+**Know when to abandon a session chain.** Session iteration works well for incremental refinements, but long chains accumulate drift. Details established early (boot size, color choices, proportions) can silently regress as the conversation grows. If you notice the model "forgetting" established details after 3-4 turns, start a fresh generation with a complete prompt rather than continuing to correct within the session. Carry forward the language that worked, not the session history.
+
+**Re-emphasize critical details in every prompt.** Whether iterating in a session or starting fresh, do not assume the model remembers constraints from earlier turns. If boot size matters, describe the boots in every prompt. Repetition is not redundant; it is how you maintain consistency.
+
+**Use escalation, not repetition.** If Flash fails at something twice with different phrasings, the third attempt is unlikely to succeed. Switch to Pro for that specific task rather than grinding against a model limitation.
+
+### Flash-Specific Behavior
+
+Flash is fast and cost-effective for exploration and iteration. It handles overall composition, silhouette, mood, and style well. It has specific limitations:
+
+**Binary response to subtle effects.** Flash struggles with "just a little" of something. Requesting a small amount of mud, light weathering, faint stains, or subtle dirt tends to produce either an extreme version or nothing at all. There is no reliable middle ground. If the effect needs to be subtle, either omit it from Flash generations and handle it downstream (texturing, post-processing), or escalate to Pro.
+
+**Detail drift in session chains.** Specific details like boot size, accessory placement, and color choices can regress toward generic defaults across session turns, even when the session file preserves context. This is distinct from the general drift noted above; Flash seems more prone to it than the general case.
+
+**Multi-view consistency.** Flash cannot maintain detail consistency across multiple figures in a single image. This is the main driver of the "separate images" guidance above. When asked for two views of the same character, Flash will produce two plausible but different interpretations.
+
+### Pro-Specific Behavior
+
+Pro costs more and generates slower, but handles precision tasks that Flash cannot.
+
+**Graduated and subtle effects.** Pro can render "just a little" mud, slight weathering, and other graduated effects that Flash treats as binary. When a specific controlled amount of a visual effect is needed, Pro is the right choice.
+
+**Editing fidelity.** Pro preserves more of the source image during edits. Clothing, proportions, and pose remain more stable through edit passes. In a test removing a large jacket from a character, Pro preserved the face, hair, expression, dark circles, and rendering style exactly. Flash given the same prompt and input produced a noticeably different person with changed hair, lost expression detail, and a flatter rendering style.
+
+**Identity preservation during structural edits.** Pro can remove or replace major garments while keeping the character recognizable. Flash tends to regenerate the character from scratch when the edit is large enough, losing distinguishing features in the process.
+
+**Hypothesis: model self-consistency in editing.** The editing fidelity gap may partly stem from each model's familiarity with its own output. The test above used a Pro-generated image as input. Pro may be better at deconstructing and reconstructing images it produced because it has an internal understanding of how they were built. Flash, working with an image from a different generation process, must infer structure from pixels alone and fills latent gaps with its own defaults. This predicts that Flash editing Flash-generated images should outperform Flash editing Pro-generated images, and vice versa. Untested, but the practical implication is clear: pick your model early and stay with it through an editing chain rather than switching mid-session.
+
+Pro-specific limitations are less documented. This section will expand with testing. Known from Gemini documentation: Pro supports higher resolution output (2K/4K), more reference images (up to 14), and more reliable text rendering.
+
+### Escalation Strategy
+
+Start with Flash for creative exploration, design iteration, and establishing direction. Escalate to Pro when:
+- Flash produces binary results on a detail that needs subtlety
+- You need a precise, controlled edit to a locked design
+- Text rendering accuracy matters
+- You need more than 3 reference images
+- Previous Flash attempts have failed twice on the same specific requirement
+
+Avoid switching models mid-chain. Editing fidelity may depend partly on model self-consistency (see Pro-Specific Behavior). If a design was established in Pro, continue editing in Pro. If exploring in Flash, iterate in Flash.
+
+This is not a quality hierarchy. Flash produces excellent results for the tasks it handles well. Pro earns its cost on precision and control, not general quality.
+
 ## Safety Filter Notes
 
 The model blocks content involving minors in unsafe contexts, violence, hate speech, and explicit material. It also blocks photorealistic depictions of identifiable real people.
