@@ -59,7 +59,7 @@ Flags:
 - `-z` output resolution: 1k, 2k, or 4k (pro only)
 - `-f` overwrite output file if it exists
 
-Every invocation produces a session file alongside the output image (`cat.png` creates `cat.session.json`). This session file contains the model name and full conversation history. When continuing with `-s`, the session file is updated in place rather than creating a new one derived from `-o`.
+Every invocation produces a session file alongside the output image (`cat.png` creates `cat.session.json`). This session file contains the model name and full conversation history. The `-s` flag is read-only: it loads history but the new session always saves alongside `-o`. This preserves the source session file so the user can rewind or branch from any point.
 
 Choose an output filename that reflects the content. Place output in the current working directory or the relevant project subdirectory unless the user specifies otherwise.
 
@@ -94,7 +94,7 @@ If generation was blocked by safety filters, try these strategies before reporti
 
 If the user wants changes to a previous generation, use the session file with `-s` rather than starting fresh. This preserves conversation context so the model understands references like "make it warmer" or "change the hat." Construct a short, conversational follow-up prompt rather than repeating the full original description. Choose a new output filename that reflects the iteration (e.g., `cat_v2.png`, `cat_blue.png`).
 
-The user can rewind by referencing an earlier session file. If v3 went wrong, continuing from `cat_v1.session.json` branches from that point without losing v2 or v3. Note that `-s` updates the session file in place, so the file always reflects the latest turn of that conversation.
+The user can rewind by referencing an earlier session file. If v3 went wrong, continuing from `cat_v1.session.json` branches from that point without losing v2 or v3. The source session file is never modified; each generation writes its own session file next to its output.
 
 When NOT to use sessions: if the user wants a completely different image unrelated to previous work, start fresh without `-s`. Sessions carry visual style and context forward, which is counterproductive when the user wants a clean break. A new subject, new style, or new context means a new session.
 
