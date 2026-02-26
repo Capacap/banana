@@ -15,8 +15,16 @@ import (
 )
 
 var models = map[string]string{
-	"flash": "gemini-2.5-flash-image",
-	"pro":   "gemini-3-pro-image-preview",
+	"flash":     "gemini-3.1-flash-image-preview",
+	"flash-2.5": "gemini-2.5-flash-image",
+	"flash-3.1": "gemini-3.1-flash-image-preview",
+	"pro":       "gemini-3-pro-image-preview",
+	"pro-3.0":   "gemini-3-pro-image-preview",
+}
+
+var modelAliases = map[string]string{
+	"flash": "flash-3.1",
+	"pro":   "pro-3.0",
 }
 
 var validRatios = map[string]bool{
@@ -24,7 +32,18 @@ var validRatios = map[string]bool{
 	"9:16": true, "16:9": true, "21:9": true,
 }
 
-var maxInputImages = map[string]int{"flash": 3, "pro": 14}
+var maxInputImages = map[string]int{
+	"flash-2.5": 3,
+	"flash-3.1": 14,
+	"pro-3.0":   14,
+}
+
+func modelFamily(name string) string {
+	if i := strings.Index(name, "-"); i >= 0 {
+		return name[:i]
+	}
+	return name
+}
 
 var validSizes = map[string]bool{
 	"1K": true, "2K": true, "4K": true,
@@ -49,7 +68,7 @@ type options struct {
 	output  string
 	inputs  stringSlice
 	session string
-	model   string // "flash" or "pro"
+	model   string // resolved name: "flash-3.1", "flash-2.5", "pro-3.0"
 	modelID string // full model ID from models map
 	ratio   string
 	size    string // normalized: "" or "1K"/"2K"/"4K"
@@ -63,9 +82,9 @@ const usageText = `usage: banana -p <prompt> -o <output> [flags]
 flags:
   -p   text prompt (required)
   -o   output PNG file path (required)
-  -i   input image, repeatable (flash: 3 max, pro: 14 max)
+  -i   input image, repeatable (flash-2.5: 3 max, others: 14 max)
   -s   session file to continue from
-  -m   model: flash (default) or pro
+  -m   model: flash (default), pro, flash-2.5, flash-3.1, pro-3.0
   -r   aspect ratio: 1:1 (default), 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9
   -z   output size: 1K, 2K, 4K (requires -m pro)
   -f   overwrite existing output and session files
@@ -189,26 +208,31 @@ func parseAndValidateFlags(args []string) (*options, error) {
 	var inputs stringSlice
 	fs.Var(&inputs, "i", "input image path (repeatable, for editing/reference)")
 	session := fs.String("s", "", "session file to continue from")
-	model := fs.String("m", "flash", "model: flash or pro")
+	model := fs.String("m", "flash", "model: flash, pro, flash-2.5, flash-3.1, pro-3.0")
 	ratio := fs.String("r", "1:1", "aspect ratio: 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9")
 	size := fs.String("z", "", "output size: 1k, 2k, or 4k (pro model only)")
 	force := fs.Bool("f", false, "overwrite output and session files if they exist")
 
 	if err := fs.Parse(args); err != nil {
-		return nil, fmt.Errorf("usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1K|2K|4K] [-f]")
+		return nil, fmt.Errorf("usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]")
 	}
 
 	if fs.NArg() > 0 {
-		return nil, fmt.Errorf("unexpected arguments: %s\nusage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1K|2K|4K] [-f]", strings.Join(fs.Args(), " "))
+		return nil, fmt.Errorf("unexpected arguments: %s\nusage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]", strings.Join(fs.Args(), " "))
 	}
 
 	if strings.TrimSpace(*prompt) == "" || *output == "" {
-		return nil, fmt.Errorf("usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1K|2K|4K] [-f]")
+		return nil, fmt.Errorf("usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]")
 	}
 
-	modelID, ok := models[*model]
+	resolved := *model
+	if pinned, ok := modelAliases[resolved]; ok {
+		resolved = pinned
+	}
+
+	modelID, ok := models[resolved]
 	if !ok {
-		return nil, fmt.Errorf("unknown model %q: use \"flash\" or \"pro\"", *model)
+		return nil, fmt.Errorf("unknown model %q: valid models are flash, pro, flash-2.5, flash-3.1, pro-3.0", *model)
 	}
 
 	if !validRatios[*ratio] {
@@ -221,18 +245,18 @@ func parseAndValidateFlags(args []string) (*options, error) {
 		if !validSizes[normalized] {
 			return nil, fmt.Errorf("invalid size %q: use 1K, 2K, or 4K", *size)
 		}
-		if *model != "pro" {
-			return nil, fmt.Errorf("-z (size) requires -m pro")
+		if modelFamily(resolved) != "pro" {
+			return nil, fmt.Errorf("-z (size) requires a pro model")
 		}
 		imageSize = normalized
 	}
 
-	if max := maxInputImages[*model]; len(inputs) > max {
+	if max, ok := maxInputImages[resolved]; ok && len(inputs) > max {
 		hint := ""
-		if *model == "flash" {
-			hint = fmt.Sprintf("; use -m pro for up to %d", maxInputImages["pro"])
+		if max < 14 {
+			hint = "; flash-3.1 and pro support up to 14"
 		}
-		return nil, fmt.Errorf("%s supports up to %d input images, got %d%s", *model, max, len(inputs), hint)
+		return nil, fmt.Errorf("%s supports up to %d input images, got %d%s", resolved, max, len(inputs), hint)
 	}
 
 	if os.Getenv("GOOGLE_API_KEY") == "" {
@@ -248,7 +272,7 @@ func parseAndValidateFlags(args []string) (*options, error) {
 		output:  *output,
 		inputs:  inputs,
 		session: *session,
-		model:   *model,
+		model:   resolved,
 		modelID: modelID,
 		ratio:   *ratio,
 		size:    imageSize,
@@ -303,6 +327,10 @@ func loadSession(path, model string) ([]*genai.Content, error) {
 		return nil, fmt.Errorf("failed to parse session %q: %v", path, err)
 	}
 	if sess.Model != "" && sess.Model != model {
+		// Legacy sessions stored bare aliases ("flash", "pro"); allow if same family
+		if _, isAlias := modelAliases[sess.Model]; isAlias && modelFamily(sess.Model) == modelFamily(model) {
+			return sess.History, nil
+		}
 		return nil, fmt.Errorf("session was created with %q but -m is %q; pass -m %s to continue this session", sess.Model, model, sess.Model)
 	}
 	return sess.History, nil

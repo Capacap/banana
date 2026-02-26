@@ -82,7 +82,7 @@ func TestParseAndValidateFlags(t *testing.T) {
 		{
 			name:    "size without pro",
 			args:    []string{"-p", "a cat", "-o", "out.png", "-z", "2k"},
-			wantErr: "pro",
+			wantErr: "pro model",
 		},
 		{
 			name: "valid size normalized",
@@ -94,9 +94,9 @@ func TestParseAndValidateFlags(t *testing.T) {
 			},
 		},
 		{
-			name:    "flash input count exceeded",
-			args:    []string{"-p", "a cat", "-o", "out.png", "-i", "a.png", "-i", "b.png", "-i", "c.png", "-i", "d.png"},
-			wantErr: "use -m pro",
+			name:    "flash-2.5 input count exceeded",
+			args:    []string{"-p", "a cat", "-o", "out.png", "-m", "flash-2.5", "-i", "a.png", "-i", "b.png", "-i", "c.png", "-i", "d.png"},
+			wantErr: "flash-3.1 and pro",
 		},
 		{
 			name: "pro input count exceeded",
@@ -126,7 +126,7 @@ func TestParseAndValidateFlags(t *testing.T) {
 			wantErr: "output file must be .png",
 		},
 		{
-			name: "valid full flags",
+			name: "valid full flags with pro alias",
 			args: []string{"-p", "a cat", "-o", "out.png", "-m", "pro", "-r", "16:9", "-z", "4k", "-f"},
 			check: func(t *testing.T, opts *options) {
 				if opts.prompt != "a cat" {
@@ -135,8 +135,8 @@ func TestParseAndValidateFlags(t *testing.T) {
 				if opts.output != "out.png" {
 					t.Errorf("output = %q, want %q", opts.output, "out.png")
 				}
-				if opts.model != "pro" {
-					t.Errorf("model = %q, want %q", opts.model, "pro")
+				if opts.model != "pro-3.0" {
+					t.Errorf("model = %q, want %q", opts.model, "pro-3.0")
 				}
 				if opts.modelID != "gemini-3-pro-image-preview" {
 					t.Errorf("modelID = %q, want %q", opts.modelID, "gemini-3-pro-image-preview")
@@ -149,6 +149,30 @@ func TestParseAndValidateFlags(t *testing.T) {
 				}
 				if !opts.force {
 					t.Error("force = false, want true")
+				}
+			},
+		},
+		{
+			name: "flash alias resolves to flash-3.1",
+			args: []string{"-p", "a cat", "-o", "out.png"},
+			check: func(t *testing.T, opts *options) {
+				if opts.model != "flash-3.1" {
+					t.Errorf("model = %q, want %q", opts.model, "flash-3.1")
+				}
+				if opts.modelID != "gemini-3.1-flash-image-preview" {
+					t.Errorf("modelID = %q, want %q", opts.modelID, "gemini-3.1-flash-image-preview")
+				}
+			},
+		},
+		{
+			name: "pinned flash-2.5",
+			args: []string{"-p", "a cat", "-o", "out.png", "-m", "flash-2.5"},
+			check: func(t *testing.T, opts *options) {
+				if opts.model != "flash-2.5" {
+					t.Errorf("model = %q, want %q", opts.model, "flash-2.5")
+				}
+				if opts.modelID != "gemini-2.5-flash-image" {
+					t.Errorf("modelID = %q, want %q", opts.modelID, "gemini-2.5-flash-image")
 				}
 			},
 		},
@@ -357,7 +381,36 @@ func TestLoadSession(t *testing.T) {
 			wantErr: "failed to parse session",
 		},
 		{
-			name: "valid new format",
+			name: "exact pinned match",
+			setup: func(t *testing.T) string {
+				sess := sessionData{
+					Model: "flash-3.1",
+					History: []*genai.Content{
+						{Role: "user", Parts: []*genai.Part{{Text: "hello"}}},
+					},
+				}
+				data, _ := json.Marshal(sess)
+				p := filepath.Join(t.TempDir(), "session.json")
+				os.WriteFile(p, data, 0644)
+				return p
+			},
+			model:   "flash-3.1",
+			wantLen: 1,
+		},
+		{
+			name: "pinned model mismatch",
+			setup: func(t *testing.T) string {
+				sess := sessionData{Model: "pro-3.0", History: []*genai.Content{}}
+				data, _ := json.Marshal(sess)
+				p := filepath.Join(t.TempDir(), "session.json")
+				os.WriteFile(p, data, 0644)
+				return p
+			},
+			model:   "flash-3.1",
+			wantErr: "pro-3.0",
+		},
+		{
+			name: "legacy alias same family allowed",
 			setup: func(t *testing.T) string {
 				sess := sessionData{
 					Model: "flash",
@@ -370,23 +423,23 @@ func TestLoadSession(t *testing.T) {
 				os.WriteFile(p, data, 0644)
 				return p
 			},
-			model:   "flash",
+			model:   "flash-3.1",
 			wantLen: 1,
 		},
 		{
-			name: "model mismatch",
+			name: "legacy alias different family rejected",
 			setup: func(t *testing.T) string {
-				sess := sessionData{Model: "pro", History: []*genai.Content{}}
+				sess := sessionData{Model: "flash", History: []*genai.Content{}}
 				data, _ := json.Marshal(sess)
 				p := filepath.Join(t.TempDir(), "session.json")
 				os.WriteFile(p, data, 0644)
 				return p
 			},
-			model:   "flash",
-			wantErr: "pro",
+			model:   "pro-3.0",
+			wantErr: "flash",
 		},
 		{
-			name: "legacy format empty model",
+			name: "empty model skips check",
 			setup: func(t *testing.T) string {
 				sess := sessionData{
 					Model: "",
@@ -399,7 +452,7 @@ func TestLoadSession(t *testing.T) {
 				os.WriteFile(p, data, 0644)
 				return p
 			},
-			model:   "pro",
+			model:   "pro-3.0",
 			wantLen: 1,
 		},
 	}

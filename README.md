@@ -50,7 +50,7 @@ Delete `~/.claude/skills/banana/` (or wherever you placed it). Optionally remove
 ## CLI reference
 
 ```
-banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1K|2K|4K] [-f]
+banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]
 ```
 
 | Flag | Required | Description |
@@ -59,16 +59,16 @@ banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r
 | `-o` | yes | Output PNG file path (must end in `.png`) |
 | `-i` | no | Input image for editing/reference (repeatable; supports png, jpg/jpeg, webp, heic, heif) |
 | `-s` | no | Session file to continue from |
-| `-m` | no | Model: `flash` (default) or `pro` |
+| `-m` | no | Model: `flash` (default), `pro`, `flash-2.5`, `flash-3.1`, `pro-3.0` |
 | `-r` | no | Aspect ratio (default `1:1`). Options: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `9:16`, `16:9`, `21:9` |
 | `-z` | no | Output resolution: `1K`, `2K`, or `4K` (requires `-m pro`) |
 | `-f` | no | Overwrite output and session files if they already exist |
 
-Pass `-i` multiple times to provide several reference images. Flash supports up to 3, Pro up to 14. Each input file must be under 7 MB. The CLI checks for `GOOGLE_API_KEY` at startup and exits with a clear error if it is missing. Run `banana help` to see usage information.
+Pass `-i` multiple times to provide several reference images. Flash 2.5 supports up to 3 input images; Flash 3.1 and Pro support up to 14. Each input file must be under 7 MB. The CLI checks for `GOOGLE_API_KEY` at startup and exits with a clear error if it is missing. Run `banana help` to see usage information.
 
 ### Sessions
 
-Every generation produces a session file by replacing the output file's extension with `.session.json` (e.g., `out.png` produces `out.session.json`). The session file records the model name and conversation history. Passing it with `-s` continues the conversation. The session always saves alongside `-o`, preserving the source session for rewind and branching. The CLI validates that the session's model matches the current `-m` flag to prevent accidental cross-model continuation.
+Every generation produces a session file by replacing the output file's extension with `.session.json` (e.g., `out.png` produces `out.session.json`). The session file records the resolved model name (e.g., `flash-3.1`, not the bare alias `flash`) and conversation history. Passing it with `-s` continues the conversation. The session always saves alongside `-o`, preserving the source session for rewind and branching. The CLI validates that the session's model matches the current `-m` flag to prevent accidental cross-model continuation.
 
 Without `-f`, the CLI refuses to write if the output or session file already exists. This includes the case where `-s` points to the same session file that `-o` would produce (e.g., `-o cat.png -s cat.session.json`). With `-f`, both the output and the session file are overwritten, including the source session if it collides.
 
@@ -84,7 +84,7 @@ Example output:
 
 ```
 version:   1
-model:     flash (gemini-2.5-flash-image)
+model:     flash-3.1 (gemini-3.1-flash-image-preview)
 ratio:     1:1
 timestamp: 2026-02-26T15:04:05Z
 
@@ -107,12 +107,15 @@ Without `-f`, nothing is deleted. The listing shows file path, model, turn count
 
 ### Models
 
-| Model | Flag | Speed | Resolution control |
-|-------|------|-------|--------------------|
-| Gemini 2.5 Flash Image | `-m flash` | ~4s | No (1K only) |
-| Gemini 3 Pro Image Preview | `-m pro` | ~8-12s | Yes (`-z 1K\|2K\|4K`) |
+| Model | Flag | Max inputs | Resolution control |
+|-------|------|------------|--------------------|
+| Gemini 3.1 Flash Image Preview | `-m flash` (default), `-m flash-3.1` | 14 | No |
+| Gemini 2.5 Flash Image | `-m flash-2.5` | 3 | No |
+| Gemini 3 Pro Image Preview | `-m pro`, `-m pro-3.0` | 14 | Yes (`-z 1K\|2K\|4K`) |
 
-Flash is the default. Pro is selected when the task requires text rendering, high resolution, or more than 3 reference images.
+`flash` and `pro` are aliases that always point to the latest version in their family. Use a pinned name (`flash-2.5`, `flash-3.1`, `pro-3.0`) to lock to a specific model version. This matters when a model's particular rendering style is desirable, since different versions have different artistic tendencies.
+
+Flash is the default. Pro is selected when the task requires text rendering or high resolution output (`-z`).
 
 ## Repository structure
 

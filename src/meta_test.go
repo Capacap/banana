@@ -20,7 +20,7 @@ func TestBuildMetadata(t *testing.T) {
 	}{
 		{
 			name: "basic text extraction",
-			opts: &options{model: "flash", modelID: "gemini-2.5-flash-image", ratio: "1:1"},
+			opts: &options{model: "flash-3.1", modelID: "gemini-3.1-flash-image-preview", ratio: "1:1"},
 			history: []*genai.Content{
 				{Role: "user", Parts: []*genai.Part{{Text: "a cat"}}},
 				{Role: "model", Parts: []*genai.Part{{Text: "here it is"}}},
@@ -37,7 +37,7 @@ func TestBuildMetadata(t *testing.T) {
 		},
 		{
 			name: "inline data excluded",
-			opts: &options{model: "pro", modelID: "gemini-3-pro-image-preview", ratio: "16:9"},
+			opts: &options{model: "pro-3.0", modelID: "gemini-3-pro-image-preview", ratio: "16:9"},
 			history: []*genai.Content{
 				{Role: "user", Parts: []*genai.Part{
 					{Text: "edit this"},
@@ -57,7 +57,7 @@ func TestBuildMetadata(t *testing.T) {
 		},
 		{
 			name: "thought parts excluded",
-			opts: &options{model: "flash", modelID: "gemini-2.5-flash-image", ratio: "1:1"},
+			opts: &options{model: "flash-3.1", modelID: "gemini-3.1-flash-image-preview", ratio: "1:1"},
 			history: []*genai.Content{
 				{Role: "user", Parts: []*genai.Part{{Text: "hello"}}},
 				{Role: "model", Parts: []*genai.Part{
@@ -75,7 +75,7 @@ func TestBuildMetadata(t *testing.T) {
 		{
 			name: "inputs stores basenames only",
 			opts: &options{
-				model: "flash", modelID: "gemini-2.5-flash-image", ratio: "1:1",
+				model: "flash-3.1", modelID: "gemini-3.1-flash-image-preview", ratio: "1:1",
 				inputs: stringSlice{"/home/user/images/ref.png", "../assets/bg.jpg"},
 			},
 			history:     []*genai.Content{{Role: "user", Parts: []*genai.Part{{Text: "go"}}}},
@@ -95,7 +95,7 @@ func TestBuildMetadata(t *testing.T) {
 		{
 			name: "session stores basename only",
 			opts: &options{
-				model: "flash", modelID: "gemini-2.5-flash-image", ratio: "1:1",
+				model: "flash-3.1", modelID: "gemini-3.1-flash-image-preview", ratio: "1:1",
 				session: "/home/user/work/cat.session.json",
 			},
 			history:     []*genai.Content{{Role: "user", Parts: []*genai.Part{{Text: "go"}}}},
@@ -108,7 +108,7 @@ func TestBuildMetadata(t *testing.T) {
 		},
 		{
 			name: "no session when flag absent",
-			opts: &options{model: "flash", modelID: "gemini-2.5-flash-image", ratio: "1:1"},
+			opts: &options{model: "flash-3.1", modelID: "gemini-3.1-flash-image-preview", ratio: "1:1"},
 			history:     []*genai.Content{{Role: "user", Parts: []*genai.Part{{Text: "go"}}}},
 			wantPrompts: 1,
 			check: func(t *testing.T, meta imageMetadata) {
@@ -119,7 +119,7 @@ func TestBuildMetadata(t *testing.T) {
 		},
 		{
 			name: "nil content in history skipped",
-			opts: &options{model: "flash", modelID: "gemini-2.5-flash-image", ratio: "1:1"},
+			opts: &options{model: "flash-3.1", modelID: "gemini-3.1-flash-image-preview", ratio: "1:1"},
 			history: []*genai.Content{
 				nil,
 				{Role: "user", Parts: []*genai.Part{{Text: "hello"}}},
@@ -128,11 +128,11 @@ func TestBuildMetadata(t *testing.T) {
 		},
 		{
 			name: "fields populated from opts",
-			opts: &options{model: "pro", modelID: "gemini-3-pro-image-preview", ratio: "3:2", size: "4K"},
+			opts: &options{model: "pro-3.0", modelID: "gemini-3-pro-image-preview", ratio: "3:2", size: "4K"},
 			history: []*genai.Content{{Role: "user", Parts: []*genai.Part{{Text: "x"}}}},
 			wantPrompts: 1,
 			check: func(t *testing.T, meta imageMetadata) {
-				if meta.Model != "pro" {
+				if meta.Model != "pro-3.0" {
 					t.Errorf("model = %q", meta.Model)
 				}
 				if meta.ModelID != "gemini-3-pro-image-preview" {
@@ -173,8 +173,8 @@ func TestRunMeta(t *testing.T) {
 		png := minimalPNG()
 		meta := imageMetadata{
 			Version:   metadataVersion,
-			Model:     "flash",
-			ModelID:   "gemini-2.5-flash-image",
+			Model:     "flash-3.1",
+			ModelID:   "gemini-3.1-flash-image-preview",
 			Ratio:     "1:1",
 			Timestamp: "2026-02-26T12:00:00Z",
 			Prompts:   []promptEntry{{Role: "user", Text: "a cat"}},

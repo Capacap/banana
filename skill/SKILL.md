@@ -17,7 +17,7 @@ The goal is an image that matches the user's intent. Each section builds toward 
 
 Identify what the user wants: generating a new image, editing an existing one, iterating on a previous generation, or rendering text (posters, signs, logos). If editing or iterating, identify the source image or session file. If the request is too vague to construct a strong prompt, ask focused questions about the missing elements rather than guessing.
 
-Choose the model. Flash (default) handles most tasks and costs less. Pro produces higher fidelity at higher cost. Use flash unless the user requests pro or the task demands it. Concrete triggers for Pro: rendered text (Pro has under 10% error rate; Flash is unreliable), high resolution (Pro supports 2K/4K; Flash is 1K only), more than 3 reference images (Pro handles up to 14), or previous flash attempts produced unsatisfactory results.
+Choose the model. Flash (default) handles most tasks and costs less. Pro produces higher fidelity at higher cost. Use flash unless the user requests pro or the task demands it. Concrete triggers for Pro: rendered text (Pro has under 10% error rate; Flash is unreliable), high resolution (Pro supports 2K/4K via `-z`; Flash is 1K only), or previous flash attempts produced unsatisfactory results. If the user wants a specific model version for its rendering style, use a pinned name (`flash-2.5`, `flash-3.1`, `pro-3.0`).
 
 Choose the aspect ratio from the supported set: 1:1 (default), 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9. Match the ratio to the content and justify the choice briefly when presenting the command.
 
@@ -35,7 +35,7 @@ When a specific detail fights the model's strongest visual association (e.g., "p
 
 For editing prompts, be explicit about preservation. State what should change and what must remain untouched. Faces are especially sensitive to drift; when editing faces or characters, make one change per turn. For non-face edits, multiple changes in a single turn are usually fine.
 
-For multi-image reference, pass each image with a separate `-i` flag. In the prompt, refer to each image by its role ("the first image shows the character, the second shows the environment"). Flash accepts up to 3 reference images; if the task needs more, switch to Pro.
+For multi-image reference, pass each image with a separate `-i` flag. In the prompt, refer to each image by its role ("the first image shows the character, the second shows the environment"). Flash 2.5 accepts up to 3 reference images; Flash 3.1 and Pro accept up to 14.
 
 For detailed templates by image type, editing patterns, and advanced techniques, see [prompting-reference.md](prompting-reference.md).
 
@@ -46,15 +46,15 @@ The `banana` binary lives in this skill's directory, not on PATH. This is intent
 CLI syntax:
 
 ```
-<skill-dir>/banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1K|2K|4K] [-f]
+<skill-dir>/banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]
 ```
 
 Flags:
 - `-p` text prompt (required)
 - `-o` output PNG file path (required; must end in .png)
-- `-i` input image for editing/reference (optional, repeatable; supports png, jpg/jpeg, webp, heic, heif). Flash: up to 3 images. Pro: up to 14. Each file must be under 7 MB.
+- `-i` input image for editing/reference (optional, repeatable; supports png, jpg/jpeg, webp, heic, heif). Flash 2.5: up to 3 images. Flash 3.1 and Pro: up to 14. Each file must be under 7 MB.
 - `-s` session file to continue from (optional)
-- `-m` model: flash (default) or pro
+- `-m` model: flash (default), pro, flash-2.5, flash-3.1, pro-3.0. Bare names are aliases for the latest version; pinned names lock to a specific model.
 - `-r` aspect ratio (default 1:1)
 - `-z` output resolution: 1K, 2K, or 4K (pro only)
 - `-f` overwrite output and session files if they exist
