@@ -47,7 +47,7 @@ func validateSessionFile(path string) (*sessionInfo, error) {
 
 	return &sessionInfo{
 		Model: sess.Model,
-		Turns: (len(sess.History) + 1) / 2,
+		Turns: (len(sess.History) + 1) / 2, // each turn is a user+model pair
 		Size:  info.Size(),
 	}, nil
 }
@@ -94,7 +94,7 @@ func runClean(args []string) error {
 		return fmt.Errorf("cannot read directory: %v", err)
 	}
 	for _, d := range entries {
-		if d.IsDir() || !strings.HasSuffix(d.Name(), ".session.json") {
+		if d.IsDir() || !strings.HasSuffix(d.Name(), sessionSuffix) {
 			continue
 		}
 		path := filepath.Join(dir, d.Name())

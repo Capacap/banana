@@ -26,7 +26,13 @@ var validRatios = map[string]bool{
 
 var maxInputImages = map[string]int{"flash": 3, "pro": 14}
 
+var validSizes = map[string]bool{
+	"1K": true, "2K": true, "4K": true,
+}
+
 const maxInputFileSize = 7 * 1024 * 1024 // 7 MB inline limit
+const sessionSuffix = ".session.json"
+const outputPerm = 0644
 
 type sessionData struct {
 	Model   string           `json:"model"`
@@ -155,7 +161,7 @@ func run(args []string) error {
 	meta := buildMetadata(opts, chat.History(true))
 	imageData = embedMetadata(imageData, meta)
 
-	if err := os.WriteFile(opts.output, imageData, 0644); err != nil {
+	if err := os.WriteFile(opts.output, imageData, outputPerm); err != nil {
 		return fmt.Errorf("failed to write output: %v", err)
 	}
 	fmt.Fprintf(os.Stderr, "saved %s (%d bytes)\n", opts.output, len(imageData))
@@ -166,7 +172,7 @@ func run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to serialize session: %v", err)
 	}
-	if err := os.WriteFile(sessPath, sessBytes, 0644); err != nil {
+	if err := os.WriteFile(sessPath, sessBytes, outputPerm); err != nil {
 		return fmt.Errorf("failed to write session: %v", err)
 	}
 	fmt.Fprintf(os.Stderr, "session: %s\n", sessPath)
@@ -212,7 +218,7 @@ func parseAndValidateFlags(args []string) (*options, error) {
 	var imageSize string
 	if *size != "" {
 		normalized := strings.ToUpper(*size)
-		if normalized != "1K" && normalized != "2K" && normalized != "4K" {
+		if !validSizes[normalized] {
 			return nil, fmt.Errorf("invalid size %q: use 1k, 2k, or 4k", *size)
 		}
 		if *model != "pro" {
@@ -224,7 +230,7 @@ func parseAndValidateFlags(args []string) (*options, error) {
 	if max := maxInputImages[*model]; len(inputs) > max {
 		hint := ""
 		if *model == "flash" {
-			hint = "; use -m pro for up to 14"
+			hint = fmt.Sprintf("; use -m pro for up to %d", maxInputImages["pro"])
 		}
 		return nil, fmt.Errorf("%s supports up to %d input images, got %d%s", *model, max, len(inputs), hint)
 	}
@@ -278,7 +284,7 @@ func validatePaths(opts *options) error {
 			return fmt.Errorf("input file %q has unsupported extension (supported: png, jpg/jpeg, webp, heic, heif)", path)
 		}
 		if info.Size() > maxInputFileSize {
-			return fmt.Errorf("input file %q is %.1f MB, exceeds 7 MB inline limit", path, float64(info.Size())/(1024*1024))
+			return fmt.Errorf("input file %q is %.1f MB, exceeds %.0f MB inline limit", path, float64(info.Size())/(1024*1024), float64(maxInputFileSize)/(1024*1024))
 		}
 	}
 
@@ -343,7 +349,7 @@ func extractResult(result *genai.GenerateContentResponse) (string, []byte, error
 
 func sessionPath(outputPath string) string {
 	ext := filepath.Ext(outputPath)
-	return strings.TrimSuffix(outputPath, ext) + ".session.json"
+	return strings.TrimSuffix(outputPath, ext) + sessionSuffix
 }
 
 var supportedMimes = map[string]string{

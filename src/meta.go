@@ -12,6 +12,7 @@ import (
 )
 
 const metadataVersion = 1
+const metadataKey = "banana"
 
 type imageMetadata struct {
 	Version   int           `json:"version"`
@@ -86,7 +87,7 @@ func embedMetadata(imageData []byte, meta imageMetadata) []byte {
 		fmt.Fprintf(os.Stderr, "note: failed to marshal metadata: %v\n", err)
 		return imageData
 	}
-	result, err := pngSetText(imageData, "banana", string(jsonBytes))
+	result, err := pngSetText(imageData, metadataKey, string(jsonBytes))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "note: failed to embed metadata: %v\n", err)
 		return imageData
@@ -109,7 +110,7 @@ func runMeta(args []string) error {
 		return fmt.Errorf("%q is not a PNG file (metadata is only embedded in PNG output)", path)
 	}
 
-	raw, err := pngGetText(data, "banana")
+	raw, err := pngGetText(data, metadataKey)
 	if err != nil {
 		return fmt.Errorf("no banana metadata found in %q", path)
 	}
