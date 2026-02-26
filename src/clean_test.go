@@ -117,7 +117,7 @@ func TestValidateSessionFile(t *testing.T) {
 			wantErr: "not a banana session",
 		},
 		{
-			name: "wrong structure rejects unknown fields",
+			name: "wrong structure missing history",
 			setup: func(t *testing.T) string {
 				p := filepath.Join(t.TempDir(), "wrong.session.json")
 				os.WriteFile(p, []byte(`{"foo":"bar"}`), 0644)
@@ -126,13 +126,14 @@ func TestValidateSessionFile(t *testing.T) {
 			wantErr: "not a banana session",
 		},
 		{
-			name: "extra fields rejected",
+			name: "extra fields accepted for forward compatibility",
 			setup: func(t *testing.T) string {
 				p := filepath.Join(t.TempDir(), "extra.session.json")
 				os.WriteFile(p, []byte(`{"model":"flash","history":[],"extra":true}`), 0644)
 				return p
 			},
-			wantErr: "not a banana session",
+			wantModel: "flash",
+			wantTurns: 0,
 		},
 		{
 			name: "unknown model value",

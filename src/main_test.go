@@ -377,7 +377,7 @@ func TestLoadSession(t *testing.T) {
 				return filepath.Join(t.TempDir(), "missing.json")
 			},
 			model:   "flash",
-			wantErr: "failed to read session",
+			wantErr: "failed to read",
 		},
 		{
 			name: "invalid json",
@@ -387,7 +387,7 @@ func TestLoadSession(t *testing.T) {
 				return p
 			},
 			model:   "flash",
-			wantErr: "failed to parse session",
+			wantErr: "failed to parse",
 		},
 		{
 			name: "exact pinned match",

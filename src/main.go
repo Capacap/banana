@@ -19,12 +19,17 @@ type modelDef struct {
 	ID             string
 	Family         string
 	MaxInputImages int
+	InputPerMTok   float64 // USD per 1M input tokens
+	OutputPerMTok  float64 // USD per 1M output text tokens
+	ImageOutput    float64 // USD per generated output image
 }
 
+const pricesCollected = "2026-02-26"
+
 var modelDefs = map[string]modelDef{
-	"flash-2.5": {ID: "gemini-2.5-flash-image", Family: "flash", MaxInputImages: 3},
-	"flash-3.1": {ID: "gemini-3.1-flash-image-preview", Family: "flash", MaxInputImages: 14},
-	"pro-3.0":   {ID: "gemini-3-pro-image-preview", Family: "pro", MaxInputImages: 14},
+	"flash-2.5": {ID: "gemini-2.5-flash-image", Family: "flash", MaxInputImages: 3, InputPerMTok: 0.30, OutputPerMTok: 0.60, ImageOutput: 0.039},
+	"flash-3.1": {ID: "gemini-3.1-flash-image-preview", Family: "flash", MaxInputImages: 14, InputPerMTok: 0.25, OutputPerMTok: 1.50, ImageOutput: 0.067},
+	"pro-3.0":   {ID: "gemini-3-pro-image-preview", Family: "pro", MaxInputImages: 14, InputPerMTok: 2.00, OutputPerMTok: 12.00, ImageOutput: 0.134},
 }
 
 var modelAliases = map[string]string{
@@ -66,13 +71,7 @@ var validSizes = map[string]bool{
 }
 
 const maxInputFileSize = 7 * 1024 * 1024 // 7 MB inline limit
-const sessionSuffix = ".session.json"
 const outputPerm = 0644
-
-type sessionData struct {
-	Model   string           `json:"model"`
-	History []*genai.Content `json:"history"`
-}
 
 type stringSlice []string
 
@@ -93,6 +92,7 @@ type options struct {
 
 const usageText = `usage: banana -p <prompt> -o <output> [flags]
        banana meta <image.png>
+       banana cost <session-file-or-directory>
        banana clean [-f] <directory>
 
 flags:
@@ -107,6 +107,7 @@ flags:
 
 subcommands:
   meta    show metadata embedded in a generated PNG
+  cost    estimate API cost from session files
   clean   find and remove session files from a directory`
 
 func main() {
@@ -127,6 +128,8 @@ func run(args []string) error {
 		return nil
 	case "clean":
 		return runClean(args[1:])
+	case "cost":
+		return runCost(args[1:])
 	case "meta":
 		return runMeta(args[1:])
 	}
@@ -201,9 +204,19 @@ func run(args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "saved %s (%d bytes)\n", opts.output, len(imageData))
 
-	// Save session alongside output (never overwrite the source session)
+	// Save session alongside output (never overwrite the source session).
+	// Usage reflects this API call only; multi-turn sessions accumulate input
+	// tokens across calls, but we only record the final call's counts.
 	sessPath := sessionPath(opts.output)
-	sessBytes, err := json.Marshal(sessionData{Model: opts.model, History: chat.History(true)})
+	var usage *usageData
+	if result.UsageMetadata != nil {
+		usage = &usageData{
+			PromptTokens:    result.UsageMetadata.PromptTokenCount,
+			CandidateTokens: result.UsageMetadata.CandidatesTokenCount,
+			TotalTokens:     result.UsageMetadata.TotalTokenCount,
+		}
+	}
+	sessBytes, err := json.Marshal(sessionData{Model: opts.model, History: chat.History(true), Usage: usage})
 	if err != nil {
 		return fmt.Errorf("failed to serialize session: %v", err)
 	}
@@ -346,25 +359,6 @@ func validatePaths(opts *options) error {
 	return nil
 }
 
-func loadSession(path, model string) ([]*genai.Content, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read session %q: %v", path, err)
-	}
-	var sess sessionData
-	if err := json.Unmarshal(raw, &sess); err != nil {
-		return nil, fmt.Errorf("failed to parse session %q: %v", path, err)
-	}
-	if sess.Model != "" && sess.Model != model {
-		// Legacy sessions stored bare aliases ("flash", "pro"); allow if same family
-		if target, isAlias := modelAliases[sess.Model]; isAlias && modelDefs[target].Family == modelDefs[model].Family {
-			return sess.History, nil
-		}
-		return nil, fmt.Errorf("session was created with %q but -m is %q; pass -m %s to continue this session", sess.Model, model, sess.Model)
-	}
-	return sess.History, nil
-}
-
 func extractResult(result *genai.GenerateContentResponse) (string, []byte, error) {
 	if result == nil || len(result.Candidates) == 0 {
 		if result != nil && result.PromptFeedback != nil && result.PromptFeedback.BlockReason != "" {
@@ -404,11 +398,6 @@ func extractResult(result *genai.GenerateContentResponse) (string, []byte, error
 	}
 
 	return textBuf.String(), imageData, nil
-}
-
-func sessionPath(outputPath string) string {
-	ext := filepath.Ext(outputPath)
-	return strings.TrimSuffix(outputPath, ext) + sessionSuffix
 }
 
 var supportedMimes = map[string]string{

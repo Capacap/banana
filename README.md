@@ -105,6 +105,19 @@ banana clean -f <directory>     # delete validated session files
 
 Without `-f`, nothing is deleted. The listing shows file path, model, turn count, and size for each file. Files that fail validation (corrupt JSON, unknown structure) are skipped with a warning and never deleted.
 
+### Cost estimation
+
+The `cost` subcommand estimates API cost from session files using published Gemini pricing.
+
+```
+banana cost <session-file>      # single session breakdown
+banana cost <directory>         # summarize all sessions in a directory
+```
+
+Single-file output shows model, turn count, token usage with costs, image count, and total. Directory output lists each session with a per-session cost and a grand total. Sessions created before usage tracking (or with unrecognized models) show partial data.
+
+Pricing is based on published rates as of 2026-02-26. Image output costs assume 1K resolution. The estimate covers input tokens, output tokens, and generated images.
+
 ### Models
 
 | Model | Flag | Max inputs | Resolution control |

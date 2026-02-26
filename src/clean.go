@@ -1,14 +1,10 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
-	"strings"
 )
 
 type sessionInfo struct {
@@ -18,20 +14,8 @@ type sessionInfo struct {
 }
 
 func validateSessionFile(path string) (*sessionInfo, error) {
-	info, err := os.Stat(path)
+	sess, size, err := readSession(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot stat file: %v", err)
-	}
-
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read file: %v", err)
-	}
-
-	var sess sessionData
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&sess); err != nil {
 		return nil, fmt.Errorf("not a banana session: %v", err)
 	}
 
@@ -41,14 +25,10 @@ func validateSessionFile(path string) (*sessionInfo, error) {
 		}
 	}
 
-	if sess.History == nil {
-		return nil, fmt.Errorf("missing history field")
-	}
-
 	return &sessionInfo{
 		Model: sess.Model,
-		Turns: (len(sess.History) + 1) / 2, // each turn is a user+model pair
-		Size:  info.Size(),
+		Turns: (len(sess.History) + 1) / 2,
+		Size:  size,
 	}, nil
 }
 
@@ -89,15 +69,11 @@ func runClean(args []string) error {
 	var files []validatedFile
 	var skipped int
 
-	entries, err := os.ReadDir(dir)
+	paths, err := listSessionFiles(dir)
 	if err != nil {
-		return fmt.Errorf("cannot read directory: %v", err)
+		return err
 	}
-	for _, d := range entries {
-		if d.IsDir() || !strings.HasSuffix(d.Name(), sessionSuffix) {
-			continue
-		}
-		path := filepath.Join(dir, d.Name())
+	for _, path := range paths {
 		si, vErr := validateSessionFile(path)
 		if vErr != nil {
 			fmt.Fprintf(os.Stderr, "skip %s: %v\n", path, vErr)

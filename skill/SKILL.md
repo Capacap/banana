@@ -78,7 +78,7 @@ Offer to organize when any of these conditions are apparent:
 
 When offering, keep it brief. One line suggesting cleanup, not a detailed proposal. If the user accepts, move superseded intermediates to an archive subdirectory, group keepers logically, and clean up orphaned session files. If they decline or ignore it, do not raise it again until the situation changes meaningfully.
 
-To clean up session files in bulk, use `banana clean <directory>` for a dry run (lists model, turn count, and size for each file) or `banana clean -f <directory>` to delete them. Files that fail validation are skipped and never deleted.
+To clean up session files in bulk, use `banana clean <directory>` for a dry run (lists model, turn count, and size for each file) or `banana clean -f <directory>` to delete them. Files that fail validation are skipped and never deleted. To check API cost, use `banana cost <session-file>` for a single session or `banana cost <directory>` for a summary of all sessions in a directory.
 
 # After Generation
 
