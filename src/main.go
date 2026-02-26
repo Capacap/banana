@@ -9,17 +9,22 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"google.golang.org/genai"
 )
 
-var models = map[string]string{
-	"flash":     "gemini-3.1-flash-image-preview",
-	"flash-2.5": "gemini-2.5-flash-image",
-	"flash-3.1": "gemini-3.1-flash-image-preview",
-	"pro":       "gemini-3-pro-image-preview",
-	"pro-3.0":   "gemini-3-pro-image-preview",
+type modelDef struct {
+	ID             string
+	Family         string
+	MaxInputImages int
+}
+
+var modelDefs = map[string]modelDef{
+	"flash-2.5": {ID: "gemini-2.5-flash-image", Family: "flash", MaxInputImages: 3},
+	"flash-3.1": {ID: "gemini-3.1-flash-image-preview", Family: "flash", MaxInputImages: 14},
+	"pro-3.0":   {ID: "gemini-3-pro-image-preview", Family: "pro", MaxInputImages: 14},
 }
 
 var modelAliases = map[string]string{
@@ -32,17 +37,28 @@ var validRatios = map[string]bool{
 	"9:16": true, "16:9": true, "21:9": true,
 }
 
-var maxInputImages = map[string]int{
-	"flash-2.5": 3,
-	"flash-3.1": 14,
-	"pro-3.0":   14,
+func isKnownModel(name string) bool {
+	if _, ok := modelDefs[name]; ok {
+		return true
+	}
+	_, ok := modelAliases[name]
+	return ok
 }
 
-func modelFamily(name string) string {
-	if i := strings.Index(name, "-"); i >= 0 {
-		return name[:i]
+func validModelNames() string {
+	seen := make(map[string]bool)
+	var names []string
+	for name := range modelAliases {
+		seen[name] = true
+		names = append(names, name)
 	}
-	return name
+	for name := range modelDefs {
+		if !seen[name] {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return strings.Join(names, ", ")
 }
 
 var validSizes = map[string]bool{
@@ -69,7 +85,7 @@ type options struct {
 	inputs  stringSlice
 	session string
 	model   string // resolved name: "flash-3.1", "flash-2.5", "pro-3.0"
-	modelID string // full model ID from models map
+	modelID string // full model ID from modelDefs map
 	ratio   string
 	size    string // normalized: "" or "1K"/"2K"/"4K"
 	force   bool
@@ -208,7 +224,7 @@ func parseAndValidateFlags(args []string) (*options, error) {
 	var inputs stringSlice
 	fs.Var(&inputs, "i", "input image path (repeatable, for editing/reference)")
 	session := fs.String("s", "", "session file to continue from")
-	model := fs.String("m", "flash", "model: flash, pro, flash-2.5, flash-3.1, pro-3.0")
+	model := fs.String("m", "flash", "model name")
 	ratio := fs.String("r", "1:1", "aspect ratio: 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9")
 	size := fs.String("z", "", "output size: 1k, 2k, or 4k (pro model only)")
 	force := fs.Bool("f", false, "overwrite output and session files if they exist")
@@ -230,9 +246,9 @@ func parseAndValidateFlags(args []string) (*options, error) {
 		resolved = pinned
 	}
 
-	modelID, ok := models[resolved]
+	def, ok := modelDefs[resolved]
 	if !ok {
-		return nil, fmt.Errorf("unknown model %q: valid models are flash, pro, flash-2.5, flash-3.1, pro-3.0", *model)
+		return nil, fmt.Errorf("unknown model %q: valid models are %s", *model, validModelNames())
 	}
 
 	if !validRatios[*ratio] {
@@ -245,18 +261,31 @@ func parseAndValidateFlags(args []string) (*options, error) {
 		if !validSizes[normalized] {
 			return nil, fmt.Errorf("invalid size %q: use 1K, 2K, or 4K", *size)
 		}
-		if modelFamily(resolved) != "pro" {
+		if def.Family != "pro" {
 			return nil, fmt.Errorf("-z (size) requires a pro model")
 		}
 		imageSize = normalized
 	}
 
-	if max, ok := maxInputImages[resolved]; ok && len(inputs) > max {
+	if len(inputs) > def.MaxInputImages {
 		hint := ""
-		if max < 14 {
-			hint = "; flash-3.1 and pro support up to 14"
+		var maxAvail int
+		for _, d := range modelDefs {
+			if d.MaxInputImages > maxAvail {
+				maxAvail = d.MaxInputImages
+			}
 		}
-		return nil, fmt.Errorf("%s supports up to %d input images, got %d%s", resolved, max, len(inputs), hint)
+		if def.MaxInputImages < maxAvail {
+			var alts []string
+			for name, d := range modelDefs {
+				if d.MaxInputImages > def.MaxInputImages {
+					alts = append(alts, name)
+				}
+			}
+			sort.Strings(alts)
+			hint = fmt.Sprintf("; %s support up to %d", strings.Join(alts, ", "), maxAvail)
+		}
+		return nil, fmt.Errorf("%s supports up to %d input images, got %d%s", resolved, def.MaxInputImages, len(inputs), hint)
 	}
 
 	if os.Getenv("GOOGLE_API_KEY") == "" {
@@ -273,7 +302,7 @@ func parseAndValidateFlags(args []string) (*options, error) {
 		inputs:  inputs,
 		session: *session,
 		model:   resolved,
-		modelID: modelID,
+		modelID: def.ID,
 		ratio:   *ratio,
 		size:    imageSize,
 		force:   *force,
@@ -328,7 +357,7 @@ func loadSession(path, model string) ([]*genai.Content, error) {
 	}
 	if sess.Model != "" && sess.Model != model {
 		// Legacy sessions stored bare aliases ("flash", "pro"); allow if same family
-		if _, isAlias := modelAliases[sess.Model]; isAlias && modelFamily(sess.Model) == modelFamily(model) {
+		if target, isAlias := modelAliases[sess.Model]; isAlias && modelDefs[target].Family == modelDefs[model].Family {
 			return sess.History, nil
 		}
 		return nil, fmt.Errorf("session was created with %q but -m is %q; pass -m %s to continue this session", sess.Model, model, sess.Model)

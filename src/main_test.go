@@ -11,6 +11,15 @@ import (
 	"google.golang.org/genai"
 )
 
+// Test-scoped model names derived from production maps. When the default
+// alias changes (e.g. flash → flash-4.0), these update automatically.
+var (
+	testFlashName    = modelAliases["flash"]
+	testFlashModelID = modelDefs[modelAliases["flash"]].ID
+	testProName      = modelAliases["pro"]
+	testProModelID   = modelDefs[modelAliases["pro"]].ID
+)
+
 func TestRunUsage(t *testing.T) {
 	t.Run("no args returns error with usage", func(t *testing.T) {
 		err := run(nil)
@@ -96,7 +105,7 @@ func TestParseAndValidateFlags(t *testing.T) {
 		{
 			name:    "flash-2.5 input count exceeded",
 			args:    []string{"-p", "a cat", "-o", "out.png", "-m", "flash-2.5", "-i", "a.png", "-i", "b.png", "-i", "c.png", "-i", "d.png"},
-			wantErr: "flash-3.1 and pro",
+			wantErr: "supports up to 3 input images, got 4",
 		},
 		{
 			name: "pro input count exceeded",
@@ -135,11 +144,11 @@ func TestParseAndValidateFlags(t *testing.T) {
 				if opts.output != "out.png" {
 					t.Errorf("output = %q, want %q", opts.output, "out.png")
 				}
-				if opts.model != "pro-3.0" {
-					t.Errorf("model = %q, want %q", opts.model, "pro-3.0")
+				if opts.model != testProName {
+					t.Errorf("model = %q, want %q", opts.model, testProName)
 				}
-				if opts.modelID != "gemini-3-pro-image-preview" {
-					t.Errorf("modelID = %q, want %q", opts.modelID, "gemini-3-pro-image-preview")
+				if opts.modelID != testProModelID {
+					t.Errorf("modelID = %q, want %q", opts.modelID, testProModelID)
 				}
 				if opts.ratio != "16:9" {
 					t.Errorf("ratio = %q, want %q", opts.ratio, "16:9")
@@ -153,14 +162,14 @@ func TestParseAndValidateFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "flash alias resolves to flash-3.1",
+			name: "flash alias resolves to current default",
 			args: []string{"-p", "a cat", "-o", "out.png"},
 			check: func(t *testing.T, opts *options) {
-				if opts.model != "flash-3.1" {
-					t.Errorf("model = %q, want %q", opts.model, "flash-3.1")
+				if opts.model != testFlashName {
+					t.Errorf("model = %q, want %q", opts.model, testFlashName)
 				}
-				if opts.modelID != "gemini-3.1-flash-image-preview" {
-					t.Errorf("modelID = %q, want %q", opts.modelID, "gemini-3.1-flash-image-preview")
+				if opts.modelID != testFlashModelID {
+					t.Errorf("modelID = %q, want %q", opts.modelID, testFlashModelID)
 				}
 			},
 		},

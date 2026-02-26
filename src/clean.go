@@ -36,7 +36,7 @@ func validateSessionFile(path string) (*sessionInfo, error) {
 	}
 
 	if sess.Model != "" {
-		if _, ok := models[sess.Model]; !ok {
+		if !isKnownModel(sess.Model) {
 			return nil, fmt.Errorf("unknown model %q", sess.Model)
 		}
 	}

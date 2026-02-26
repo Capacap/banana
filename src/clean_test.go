@@ -66,6 +66,20 @@ func TestValidateSessionFile(t *testing.T) {
 			wantTurns: 2,
 		},
 		{
+			name: "valid pinned model session",
+			setup: func(t *testing.T) string {
+				dir := t.TempDir()
+				return writeSessionFile(t, dir, "test.session.json", sessionData{
+					Model: testFlashName,
+					History: []*genai.Content{
+						{Role: "user", Parts: []*genai.Part{{Text: "hi"}}},
+					},
+				})
+			},
+			wantModel: testFlashName,
+			wantTurns: 1,
+		},
+		{
 			name: "legacy session empty model",
 			setup: func(t *testing.T) string {
 				dir := t.TempDir()
