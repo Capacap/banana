@@ -98,6 +98,10 @@ func runMeta(args []string) error {
 		return fmt.Errorf("failed to read %q: %v", path, err)
 	}
 
+	if !pngHasSignature(data) {
+		return fmt.Errorf("%q is not a PNG file (metadata is only embedded in PNG output)", path)
+	}
+
 	raw, err := pngGetText(data, "banana")
 	if err != nil {
 		return fmt.Errorf("no banana metadata found in %q", path)

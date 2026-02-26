@@ -190,6 +190,9 @@ func TestRunMeta(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for non-PNG file")
 		}
+		if !strings.Contains(err.Error(), "not a PNG file") {
+			t.Fatalf("error = %q, want mention of 'not a PNG file'", err)
+		}
 	})
 
 	t.Run("missing file", func(t *testing.T) {
