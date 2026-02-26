@@ -93,6 +93,31 @@ func TestBuildMetadata(t *testing.T) {
 			},
 		},
 		{
+			name: "session stores basename only",
+			opts: &options{
+				model: "flash", modelID: "gemini-2.5-flash-image", ratio: "1:1",
+				session: "/home/user/work/cat.session.json",
+			},
+			history:     []*genai.Content{{Role: "user", Parts: []*genai.Part{{Text: "go"}}}},
+			wantPrompts: 1,
+			check: func(t *testing.T, meta imageMetadata) {
+				if meta.Session != "cat.session.json" {
+					t.Errorf("session = %q, want %q", meta.Session, "cat.session.json")
+				}
+			},
+		},
+		{
+			name: "no session when flag absent",
+			opts: &options{model: "flash", modelID: "gemini-2.5-flash-image", ratio: "1:1"},
+			history:     []*genai.Content{{Role: "user", Parts: []*genai.Part{{Text: "go"}}}},
+			wantPrompts: 1,
+			check: func(t *testing.T, meta imageMetadata) {
+				if meta.Session != "" {
+					t.Errorf("session = %q, want empty", meta.Session)
+				}
+			},
+		},
+		{
 			name: "nil content in history skipped",
 			opts: &options{model: "flash", modelID: "gemini-2.5-flash-image", ratio: "1:1"},
 			history: []*genai.Content{

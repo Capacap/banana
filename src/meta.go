@@ -20,6 +20,7 @@ type imageMetadata struct {
 	Ratio     string        `json:"ratio"`
 	Size      string        `json:"size,omitempty"`
 	Inputs    []string      `json:"inputs,omitempty"`
+	Session   string        `json:"session,omitempty"`
 	Timestamp string        `json:"timestamp"`
 	Prompts   []promptEntry `json:"prompts"`
 }
@@ -57,6 +58,11 @@ func buildMetadata(opts *options, history []*genai.Content) imageMetadata {
 		inputs = append(inputs, filepath.Base(p))
 	}
 
+	var session string
+	if opts.session != "" {
+		session = filepath.Base(opts.session)
+	}
+
 	return imageMetadata{
 		Version:   metadataVersion,
 		Model:     opts.model,
@@ -64,6 +70,7 @@ func buildMetadata(opts *options, history []*genai.Content) imageMetadata {
 		Ratio:     opts.ratio,
 		Size:      opts.size,
 		Inputs:    inputs,
+		Session:   session,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Prompts:   prompts,
 	}
@@ -121,6 +128,9 @@ func runMeta(args []string) error {
 	fmt.Printf("timestamp: %s\n", meta.Timestamp)
 	if len(meta.Inputs) > 0 {
 		fmt.Printf("inputs:    %s\n", strings.Join(meta.Inputs, ", "))
+	}
+	if meta.Session != "" {
+		fmt.Printf("session:   %s\n", meta.Session)
 	}
 
 	if len(meta.Prompts) > 0 {
