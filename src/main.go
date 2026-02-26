@@ -50,6 +50,24 @@ type options struct {
 	force   bool
 }
 
+const usageText = `usage: banana -p <prompt> -o <output> [flags]
+       banana meta <image.png>
+       banana clean [-f] <directory>
+
+flags:
+  -p   text prompt (required)
+  -o   output file path (required)
+  -i   input image, repeatable (flash: 3 max, pro: 14 max)
+  -s   session file to continue from
+  -m   model: flash (default) or pro
+  -r   aspect ratio: 1:1 (default), 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9
+  -z   output size: 1k, 2k, 4k (requires -m pro)
+  -f   overwrite existing output and session files
+
+subcommands:
+  meta    show metadata embedded in a generated PNG
+  clean   find and remove session files from a directory`
+
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -58,10 +76,17 @@ func main() {
 }
 
 func run(args []string) error {
-	if len(args) > 0 && args[0] == "clean" {
-		return runClean(args[1:])
+	if len(args) == 0 {
+		return fmt.Errorf("%s", usageText)
 	}
-	if len(args) > 0 && args[0] == "meta" {
+
+	switch args[0] {
+	case "help", "-h", "--help":
+		fmt.Println(usageText)
+		return nil
+	case "clean":
+		return runClean(args[1:])
+	case "meta":
 		return runMeta(args[1:])
 	}
 

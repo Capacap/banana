@@ -59,7 +59,29 @@ Pass `-i` multiple times to provide several reference images. Flash supports up 
 
 ### Sessions
 
-Every generation produces a session file alongside the output (e.g., `out.png` creates `out.session.json`). The session file records the model name and conversation history. Passing it with `-s` continues the conversation and updates the session file in place. The CLI validates that the session's model matches the current `-m` flag to prevent accidental cross-model continuation.
+Every generation produces a session file alongside the output (e.g., `out.png` creates `out.session.json`). The session file records the model name and conversation history. Passing it with `-s` continues the conversation. The session always saves alongside `-o`, preserving the source session for rewind and branching. The CLI validates that the session's model matches the current `-m` flag to prevent accidental cross-model continuation.
+
+### Metadata
+
+Generated PNGs carry embedded metadata in a `tEXt` chunk recording the model, prompt history, aspect ratio, and timestamp. The `meta` subcommand reads and displays this data.
+
+```
+banana meta <image.png>
+```
+
+Example output:
+
+```
+version:   1
+model:     flash (gemini-2.5-flash-image)
+ratio:     1:1
+timestamp: 2026-02-26T15:04:05Z
+
+prompts:
+  [1] user: a cat wearing a red hat
+```
+
+Non-PNG outputs (jpg, webp) skip metadata embedding silently.
 
 ### Cleanup
 

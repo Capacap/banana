@@ -73,16 +73,22 @@ func TestBuildMetadata(t *testing.T) {
 			},
 		},
 		{
-			name: "inputs populated",
+			name: "inputs stores basenames only",
 			opts: &options{
 				model: "flash", modelID: "gemini-2.5-flash-image", ratio: "1:1",
-				inputs: stringSlice{"ref.png", "bg.jpg"},
+				inputs: stringSlice{"/home/user/images/ref.png", "../assets/bg.jpg"},
 			},
 			history:     []*genai.Content{{Role: "user", Parts: []*genai.Part{{Text: "go"}}}},
 			wantPrompts: 1,
 			check: func(t *testing.T, meta imageMetadata) {
-				if len(meta.Inputs) != 2 || meta.Inputs[0] != "ref.png" {
-					t.Errorf("inputs = %v", meta.Inputs)
+				want := []string{"ref.png", "bg.jpg"}
+				if len(meta.Inputs) != len(want) {
+					t.Fatalf("inputs = %v, want %v", meta.Inputs, want)
+				}
+				for i := range want {
+					if meta.Inputs[i] != want[i] {
+						t.Errorf("inputs[%d] = %q, want %q", i, meta.Inputs[i], want[i])
+					}
 				}
 			},
 		},
@@ -113,6 +119,9 @@ func TestBuildMetadata(t *testing.T) {
 				if meta.Size != "4K" {
 					t.Errorf("size = %q", meta.Size)
 				}
+				if meta.Version != metadataVersion {
+					t.Errorf("version = %d, want %d", meta.Version, metadataVersion)
+				}
 				if meta.Timestamp == "" {
 					t.Error("timestamp is empty")
 				}
@@ -138,6 +147,7 @@ func TestRunMeta(t *testing.T) {
 		dir := t.TempDir()
 		png := minimalPNG()
 		meta := imageMetadata{
+			Version:   metadataVersion,
 			Model:     "flash",
 			ModelID:   "gemini-2.5-flash-image",
 			Ratio:     "1:1",

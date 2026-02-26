@@ -4,13 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"google.golang.org/genai"
 )
 
+const metadataVersion = 1
+
 type imageMetadata struct {
+	Version   int           `json:"version"`
 	Model     string        `json:"model"`
 	ModelID   string        `json:"model_id"`
 	Ratio     string        `json:"ratio"`
@@ -49,11 +53,12 @@ func buildMetadata(opts *options, history []*genai.Content) imageMetadata {
 	}
 
 	var inputs []string
-	if len(opts.inputs) > 0 {
-		inputs = []string(opts.inputs)
+	for _, p := range opts.inputs {
+		inputs = append(inputs, filepath.Base(p))
 	}
 
 	return imageMetadata{
+		Version:   metadataVersion,
 		Model:     opts.model,
 		ModelID:   opts.modelID,
 		Ratio:     opts.ratio,
@@ -103,6 +108,7 @@ func runMeta(args []string) error {
 		return fmt.Errorf("failed to parse metadata: %v", err)
 	}
 
+	fmt.Printf("version:   %d\n", meta.Version)
 	fmt.Printf("model:     %s (%s)\n", meta.Model, meta.ModelID)
 	fmt.Printf("ratio:     %s\n", meta.Ratio)
 	if meta.Size != "" {

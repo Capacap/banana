@@ -11,6 +11,29 @@ import (
 	"google.golang.org/genai"
 )
 
+func TestRunUsage(t *testing.T) {
+	t.Run("no args returns error with usage", func(t *testing.T) {
+		err := run(nil)
+		if err == nil {
+			t.Fatal("expected error for no args")
+		}
+		if !strings.Contains(err.Error(), "usage:") {
+			t.Errorf("error = %q, want to contain 'usage:'", err)
+		}
+		if !strings.Contains(err.Error(), "meta") || !strings.Contains(err.Error(), "clean") {
+			t.Error("usage should mention subcommands")
+		}
+	})
+
+	t.Run("help returns nil", func(t *testing.T) {
+		for _, arg := range []string{"help", "-h", "--help"} {
+			if err := run([]string{arg}); err != nil {
+				t.Errorf("run(%q) = %v, want nil", arg, err)
+			}
+		}
+	})
+}
+
 func TestParseAndValidateFlags(t *testing.T) {
 	t.Setenv("GOOGLE_API_KEY", "test-key")
 
