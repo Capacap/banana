@@ -67,7 +67,7 @@ flags:
   -s   session file to continue from
   -m   model: flash (default) or pro
   -r   aspect ratio: 1:1 (default), 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9
-  -z   output size: 1k, 2k, 4k (requires -m pro)
+  -z   output size: 1K, 2K, 4K (requires -m pro)
   -f   overwrite existing output and session files
 
 subcommands:
@@ -195,15 +195,15 @@ func parseAndValidateFlags(args []string) (*options, error) {
 	force := fs.Bool("f", false, "overwrite output and session files if they exist")
 
 	if err := fs.Parse(args); err != nil {
-		return nil, fmt.Errorf("usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]")
+		return nil, fmt.Errorf("usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1K|2K|4K] [-f]")
 	}
 
 	if fs.NArg() > 0 {
-		return nil, fmt.Errorf("unexpected arguments: %s\nusage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]", strings.Join(fs.Args(), " "))
+		return nil, fmt.Errorf("unexpected arguments: %s\nusage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1K|2K|4K] [-f]", strings.Join(fs.Args(), " "))
 	}
 
 	if strings.TrimSpace(*prompt) == "" || *output == "" {
-		return nil, fmt.Errorf("usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]")
+		return nil, fmt.Errorf("usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1K|2K|4K] [-f]")
 	}
 
 	modelID, ok := models[*model]
@@ -219,7 +219,7 @@ func parseAndValidateFlags(args []string) (*options, error) {
 	if *size != "" {
 		normalized := strings.ToUpper(*size)
 		if !validSizes[normalized] {
-			return nil, fmt.Errorf("invalid size %q: use 1k, 2k, or 4k", *size)
+			return nil, fmt.Errorf("invalid size %q: use 1K, 2K, or 4K", *size)
 		}
 		if *model != "pro" {
 			return nil, fmt.Errorf("-z (size) requires -m pro")
@@ -261,16 +261,18 @@ func validatePaths(opts *options) error {
 		return fmt.Errorf("output directory %q does not exist", filepath.Dir(opts.output))
 	}
 
-	if opts.session != "" && filepath.Clean(opts.output) == filepath.Clean(opts.session) {
-		return fmt.Errorf("-o and -s must not point to the same file")
+	sessOut := sessionPath(opts.output)
+
+	if opts.session != "" && !opts.force && filepath.Clean(sessOut) == filepath.Clean(opts.session) {
+		return fmt.Errorf("session save path %q collides with -s source (use -f to overwrite)", sessOut)
 	}
 
 	if _, err := os.Stat(opts.output); err == nil && !opts.force {
 		return fmt.Errorf("output file %q already exists (use -f to overwrite)", opts.output)
 	}
 
-	if _, err := os.Stat(sessionPath(opts.output)); err == nil && !opts.force {
-		return fmt.Errorf("session file %q already exists (use -f to overwrite)", sessionPath(opts.output))
+	if _, err := os.Stat(sessOut); err == nil && !opts.force {
+		return fmt.Errorf("session file %q already exists (use -f to overwrite)", sessOut)
 	}
 
 	for _, path := range opts.inputs {

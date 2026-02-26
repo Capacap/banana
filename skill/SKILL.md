@@ -46,20 +46,20 @@ The `banana` binary lives in this skill's directory, not on PATH. This is intent
 CLI syntax:
 
 ```
-<skill-dir>/banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1k|2k|4k] [-f]
+<skill-dir>/banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r <ratio>] [-z 1K|2K|4K] [-f]
 ```
 
 Flags:
 - `-p` text prompt (required)
-- `-o` output file path (required; must end in .png, .jpg, .webp, .heic, or .heif)
-- `-i` input image for editing/reference (optional, repeatable). Flash: up to 3 images. Pro: up to 14. Each file must be under 7 MB.
+- `-o` output file path (required; must end in .png, .jpg/.jpeg, .webp, .heic, or .heif)
+- `-i` input image for editing/reference (optional, repeatable; supports png, jpg/jpeg, webp, heic, heif). Flash: up to 3 images. Pro: up to 14. Each file must be under 7 MB.
 - `-s` session file to continue from (optional)
 - `-m` model: flash (default) or pro
 - `-r` aspect ratio (default 1:1)
-- `-z` output resolution: 1k, 2k, or 4k (pro only)
-- `-f` overwrite output file if it exists
+- `-z` output resolution: 1K, 2K, or 4K (pro only)
+- `-f` overwrite output and session files if they exist
 
-Every invocation produces a session file alongside the output image (`cat.png` creates `cat.session.json`). This session file contains the model name and full conversation history. The `-s` flag is read-only: it loads history but the new session always saves alongside `-o`. This preserves the source session file so the user can rewind or branch from any point.
+Every invocation produces a session file by replacing the output extension with `.session.json` (`cat.png` creates `cat.session.json`). This session file contains the model name and full conversation history. The `-s` flag is read-only: it loads history but the new session always saves alongside `-o`. This preserves the source session file so the user can rewind or branch from any point. Without `-f`, the CLI refuses to write if the derived session path collides with the `-s` source. With `-f`, the source session is overwritten.
 
 Choose an output filename that reflects the content. Place output in the current working directory or the relevant project subdirectory unless the user specifies otherwise.
 
@@ -82,7 +82,7 @@ To clean up session files in bulk, use `banana clean <directory>` for a dry run 
 
 # After Generation
 
-After execution, display the generated image to the user using the Read tool.
+After execution, display the generated image to the user using the Read tool. To inspect metadata on a previously generated PNG, use `banana meta <image.png>`, which shows the model, prompt history, aspect ratio, inputs, and timestamp embedded in the file.
 
 Evaluate the result honestly. Identify what succeeded, what drifted from the prompt, and what could improve. Offer concrete directions for iteration or next steps. The conversation between generations is where creative work happens; don't just deliver the image and wait.
 

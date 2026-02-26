@@ -188,13 +188,23 @@ func TestValidatePaths(t *testing.T) {
 			wantErr: "does not exist",
 		},
 		{
-			name: "output and session same path",
+			name: "session save collides with source",
 			setup: func(t *testing.T) *options {
 				dir := t.TempDir()
-				p := filepath.Join(dir, "file.png")
-				return &options{output: p, session: p}
+				sess := filepath.Join(dir, "out.session.json")
+				os.WriteFile(sess, []byte("{}"), 0644)
+				return &options{output: filepath.Join(dir, "out.png"), session: sess}
 			},
-			wantErr: "-o and -s must not point to the same file",
+			wantErr: "collides with -s source",
+		},
+		{
+			name: "session save collides with source force",
+			setup: func(t *testing.T) *options {
+				dir := t.TempDir()
+				sess := filepath.Join(dir, "out.session.json")
+				os.WriteFile(sess, []byte("{}"), 0644)
+				return &options{output: filepath.Join(dir, "out.png"), session: sess, force: true}
+			},
 		},
 		{
 			name: "output exists without force",
