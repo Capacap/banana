@@ -47,7 +47,7 @@ banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m flash|pro] [-r
 | Flag | Required | Description |
 |------|----------|-------------|
 | `-p` | yes | Text prompt |
-| `-o` | yes | Output file path (png, jpg/jpeg, webp, heic, heif) |
+| `-o` | yes | Output PNG file path (must end in `.png`) |
 | `-i` | no | Input image for editing/reference (repeatable; supports png, jpg/jpeg, webp, heic, heif) |
 | `-s` | no | Session file to continue from |
 | `-m` | no | Model: `flash` (default) or `pro` |
@@ -83,7 +83,7 @@ prompts:
   [1] user: a cat wearing a red hat
 ```
 
-Fields like `size`, `inputs`, and `session` appear when applicable (e.g., when using `-z`, `-i`, or `-s`). Non-PNG outputs (jpg, webp) skip metadata embedding silently.
+Fields like `size`, `inputs`, and `session` appear when applicable (e.g., when using `-z`, `-i`, or `-s`). Output is always PNG since the Gemini API returns PNG data.
 
 ### Cleanup
 

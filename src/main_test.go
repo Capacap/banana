@@ -118,7 +118,12 @@ func TestParseAndValidateFlags(t *testing.T) {
 		{
 			name:    "unsupported output extension",
 			args:    []string{"-p", "a cat", "-o", "out.bmp"},
-			wantErr: "unsupported extension",
+			wantErr: "output file must be .png",
+		},
+		{
+			name:    "non-png image output rejected",
+			args:    []string{"-p", "a cat", "-o", "out.jpg"},
+			wantErr: "output file must be .png",
 		},
 		{
 			name: "valid full flags",

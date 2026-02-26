@@ -62,7 +62,7 @@ const usageText = `usage: banana -p <prompt> -o <output> [flags]
 
 flags:
   -p   text prompt (required)
-  -o   output file path (required)
+  -o   output PNG file path (required)
   -i   input image, repeatable (flash: 3 max, pro: 14 max)
   -s   session file to continue from
   -m   model: flash (default) or pro
@@ -185,7 +185,7 @@ func parseAndValidateFlags(args []string) (*options, error) {
 	fs.SetOutput(io.Discard)
 
 	prompt := fs.String("p", "", "text prompt (required)")
-	output := fs.String("o", "", "output file path (required)")
+	output := fs.String("o", "", "output PNG file path (required)")
 	var inputs stringSlice
 	fs.Var(&inputs, "i", "input image path (repeatable, for editing/reference)")
 	session := fs.String("s", "", "session file to continue from")
@@ -239,8 +239,8 @@ func parseAndValidateFlags(args []string) (*options, error) {
 		return nil, fmt.Errorf("GOOGLE_API_KEY is not set. Get one at https://aistudio.google.com")
 	}
 
-	if _, err := mimeFromPath(*output); err != nil {
-		return nil, fmt.Errorf("output file %q has unsupported extension (supported: png, jpg/jpeg, webp, heic, heif)", *output)
+	if strings.ToLower(filepath.Ext(*output)) != ".png" {
+		return nil, fmt.Errorf("output file must be .png (the Gemini API returns PNG data)")
 	}
 
 	return &options{

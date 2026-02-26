@@ -51,7 +51,7 @@ CLI syntax:
 
 Flags:
 - `-p` text prompt (required)
-- `-o` output file path (required; must end in .png, .jpg/.jpeg, .webp, .heic, or .heif)
+- `-o` output PNG file path (required; must end in .png)
 - `-i` input image for editing/reference (optional, repeatable; supports png, jpg/jpeg, webp, heic, heif). Flash: up to 3 images. Pro: up to 14. Each file must be under 7 MB.
 - `-s` session file to continue from (optional)
 - `-m` model: flash (default) or pro
