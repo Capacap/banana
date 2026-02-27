@@ -1,9 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash/crc32"
+	"image"
+	"image/png"
+
+	_ "image/jpeg"
 )
 
 var pngSignature = []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
@@ -62,6 +68,23 @@ func pngSetText(data []byte, key, value string) ([]byte, error) {
 	copy(result[insertAt+len(chunk):], data[insertAt:])
 
 	return result, nil
+}
+
+// ensurePNG returns the data unchanged if it is already PNG. Otherwise it decodes
+// the image (JPEG, etc.) and re-encodes it as PNG.
+func ensurePNG(data []byte) ([]byte, error) {
+	if pngHasSignature(data) {
+		return data, nil
+	}
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode image data: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return nil, fmt.Errorf("failed to encode as PNG: %v", err)
+	}
+	return buf.Bytes(), nil
 }
 
 // pngGetText scans a PNG for a tEXt chunk matching the given key and returns its value.

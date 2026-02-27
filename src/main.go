@@ -189,6 +189,14 @@ func run(args []string) error {
 		return err
 	}
 
+	if !pngHasSignature(imageData) {
+		fmt.Fprintln(os.Stderr, "note: response is not PNG, transcoding to PNG")
+		imageData, err = ensurePNG(imageData)
+		if err != nil {
+			return err
+		}
+	}
+
 	if text != "" {
 		fmt.Println(text)
 	}

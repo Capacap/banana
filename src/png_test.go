@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"hash/crc32"
+	"image"
+	"image/color"
+	"image/jpeg"
 	"strings"
 	"testing"
 )
@@ -51,6 +55,56 @@ func appendChunk(buf []byte, typ string, data []byte) []byte {
 	binary.BigEndian.PutUint32(crcBytes, crc.Sum32())
 	buf = append(buf, crcBytes...)
 	return buf
+}
+
+func minimalJPEG() []byte {
+	img := image.NewGray(image.Rect(0, 0, 2, 2))
+	img.SetGray(0, 0, color.Gray{Y: 128})
+	var buf bytes.Buffer
+	jpeg.Encode(&buf, img, nil)
+	return buf.Bytes()
+}
+
+func TestEnsurePNG(t *testing.T) {
+	t.Run("PNG passthrough", func(t *testing.T) {
+		png := minimalPNG()
+		out, err := ensurePNG(png)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !bytes.Equal(out, png) {
+			t.Error("PNG data should pass through unchanged")
+		}
+	})
+
+	t.Run("JPEG transcoded to PNG", func(t *testing.T) {
+		jpg := minimalJPEG()
+		if pngHasSignature(jpg) {
+			t.Fatal("test setup: JPEG should not have PNG signature")
+		}
+		out, err := ensurePNG(jpg)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !pngHasSignature(out) {
+			t.Fatal("output should be valid PNG")
+		}
+		// Verify the transcoded PNG is a decodable image
+		_, _, err = image.Decode(bytes.NewReader(out))
+		if err != nil {
+			t.Fatalf("transcoded PNG is not decodable: %v", err)
+		}
+	})
+
+	t.Run("garbage data errors", func(t *testing.T) {
+		_, err := ensurePNG([]byte("not an image"))
+		if err == nil {
+			t.Fatal("expected error for garbage data")
+		}
+		if !strings.Contains(err.Error(), "failed to decode") {
+			t.Fatalf("error = %q, want mention of 'failed to decode'", err)
+		}
+	})
 }
 
 func TestPngHasSignature(t *testing.T) {
