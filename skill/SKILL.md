@@ -59,7 +59,9 @@ Flags:
 - `-z` output resolution: 1K, 2K, or 4K (flash-3.1, pro-3.0)
 - `-f` overwrite output and session files if they exist
 
-Every invocation produces a session file by replacing the output extension with `.session.json` (`cat.png` creates `cat.session.json`). This session file contains the model name and full conversation history. The `-s` flag is read-only: it loads history but the new session always saves alongside `-o`. This preserves the source session file so the user can rewind or branch from any point. Without `-f`, the CLI refuses to write if the derived session path collides with the `-s` source. With `-f`, the source session is overwritten.
+Every invocation produces a session file alongside the output (`cat.png` creates `cat.session.json`). The `-s` flag is read-only: it loads history but the new session always saves alongside `-o`.
+
+For full details on session behavior, subcommands (`meta`, `clean`, `cost`), model specifications, and pricing, see [cli-reference.md](cli-reference.md).
 
 Choose an output filename that reflects the content. Place output in the current working directory or the relevant project subdirectory unless the user specifies otherwise.
 
@@ -78,7 +80,7 @@ Offer to organize when any of these conditions are apparent:
 
 When offering, keep it brief. One line suggesting cleanup, not a detailed proposal. If the user accepts, move superseded intermediates to an archive subdirectory, group keepers logically, and clean up orphaned session files. If they decline or ignore it, do not raise it again until the situation changes meaningfully.
 
-To clean up session files in bulk, use `banana clean <directory>` for a dry run (lists model, turn count, and size for each file) or `banana clean -f <directory>` to delete them. Files that fail validation are skipped and never deleted. To check API cost, use `banana cost <session-file>` for a single session or `banana cost <directory>` for a summary of all sessions in a directory.
+Use `banana clean` to remove session files in bulk and `banana cost` to check API spending. See [cli-reference.md](cli-reference.md) for syntax.
 
 # After Generation
 
@@ -100,5 +102,6 @@ When NOT to use sessions: if the user wants a completely different image unrelat
 
 # Resources
 
+- [cli-reference.md](cli-reference.md): flags, session behavior, subcommands, model specifications, and pricing
 - [prompting-reference.md](prompting-reference.md): templates for different image types, editing patterns, advanced techniques, and anti-patterns
 </skill-content>

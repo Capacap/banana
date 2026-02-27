@@ -10,6 +10,7 @@ A release zip extracts to a single `banana/` directory containing three files:
 
 - **`banana`** (or `banana.exe`) - CLI binary that handles Gemini API calls, session persistence, and image I/O.
 - **`SKILL.md`** - Skill file that teaches the agent how to use the binary: prompt construction, model selection, iterative refinement, and safety filter strategies.
+- **`cli-reference.md`** - Complete CLI reference: flags, session behavior, subcommands, model specifications, and pricing.
 - **`prompting-reference.md`** - Extended reference on prompt techniques, image types, and model behavior.
 
 Claude Code is the first-class target, but nothing here is Claude-specific. Any agent framework that supports tool/skill definitions and shell execution (Codex, etc.) can use this with appropriate skill file adaptation.
