@@ -68,6 +68,40 @@ func sessionPath(outputPath string) string {
 	return strings.TrimSuffix(outputPath, ext) + sessionSuffix
 }
 
+// cleanHistoryForResume prepares saved history for use as chat context.
+// Flash 3.1+ requires thought signatures on every part in model turns when
+// thinking was active. The SDK only attaches signatures to image output parts,
+// not the accompanying text. Sending text parts without signatures causes a
+// 400 error. Since model text is just commentary ("Here is your image..."),
+// we drop unsigned parts from model turns. User turns are passed through.
+func cleanHistoryForResume(history []*genai.Content) []*genai.Content {
+	for _, content := range history {
+		if content.Role != "model" {
+			continue
+		}
+		// Check whether any part in this turn carries a thought signature.
+		hasSignedPart := false
+		for _, part := range content.Parts {
+			if part != nil && part.ThoughtSignature != nil {
+				hasSignedPart = true
+				break
+			}
+		}
+		if !hasSignedPart {
+			continue // no signing in this turn; leave it alone
+		}
+		// Keep only parts that carry a thought signature.
+		var signed []*genai.Part
+		for _, part := range content.Parts {
+			if part != nil && part.ThoughtSignature != nil {
+				signed = append(signed, part)
+			}
+		}
+		content.Parts = signed
+	}
+	return history
+}
+
 // loadSession reads a session file for continuation, validating that its model
 // matches the requested model. Returns the conversation history.
 func loadSession(path, model string) ([]*genai.Content, error) {
@@ -78,9 +112,9 @@ func loadSession(path, model string) ([]*genai.Content, error) {
 	if sess.Model != "" && sess.Model != model {
 		// Legacy sessions stored bare aliases ("flash", "pro"); allow if same family
 		if target, isAlias := modelAliases[sess.Model]; isAlias && modelDefs[target].Family == modelDefs[model].Family {
-			return sess.History, nil
+			return cleanHistoryForResume(sess.History), nil
 		}
 		return nil, fmt.Errorf("session was created with %q but -m is %q; pass -m %s to continue this session", sess.Model, model, sess.Model)
 	}
-	return sess.History, nil
+	return cleanHistoryForResume(sess.History), nil
 }
