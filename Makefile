@@ -30,7 +30,7 @@ zip-%:
 	@mkdir -p $(DIST)
 	cd $(SRC) && GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 \
 		go build -ldflags="$(LDFLAGS)" -o ../$(DIST)/staging/$(NAME)/$(BIN)
-	cp $(SKILL)/SKILL.md $(SKILL)/prompting-reference.md $(DIST)/staging/$(NAME)/
+	cp $(SKILL)/SKILL.md $(SKILL)/cli-reference.md $(SKILL)/prompting-reference.md $(DIST)/staging/$(NAME)/
 	cd $(DIST)/staging && zip -r ../$(NAME)-$(OS)-$(ARCH).zip $(NAME)/
 	rm -rf $(DIST)/staging
 

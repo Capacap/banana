@@ -6,7 +6,7 @@ The CLI wraps Google's Gemini native image generation API. It was built in Go sp
 
 ## What's in the box
 
-A release zip extracts to a single `banana/` directory containing three files:
+A release zip extracts to a single `banana/` directory containing four files:
 
 - **`banana`** (or `banana.exe`) - CLI binary that handles Gemini API calls, session persistence, and image I/O.
 - **`SKILL.md`** - Skill file that teaches the agent how to use the binary: prompt construction, model selection, iterative refinement, and safety filter strategies.
