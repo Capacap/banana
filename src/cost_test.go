@@ -12,6 +12,7 @@ import (
 
 func TestAnalyzeSession(t *testing.T) {
 	flashDef := modelDefs[testFlashName]
+	flash31Def := modelDefs["flash-3.1"]
 	proDef := modelDefs[testProName]
 
 	tests := []struct {
@@ -42,8 +43,8 @@ func TestAnalyzeSession(t *testing.T) {
 			wantImages: 1,
 			wantInput:  float64(1000) * flashDef.InputPerMTok / 1_000_000,
 			wantOutput: float64(200) * flashDef.OutputPerMTok / 1_000_000,
-			wantImage:  flashDef.ImageOutput,
-			wantTotal:  float64(1000)*flashDef.InputPerMTok/1_000_000 + float64(200)*flashDef.OutputPerMTok/1_000_000 + flashDef.ImageOutput,
+			wantImage:  flashDef.ImagePrices["1K"],
+			wantTotal:  float64(1000)*flashDef.InputPerMTok/1_000_000 + float64(200)*flashDef.OutputPerMTok/1_000_000 + flashDef.ImagePrices["1K"],
 		},
 		{
 			name: "session without usage data (legacy)",
@@ -60,8 +61,8 @@ func TestAnalyzeSession(t *testing.T) {
 			wantModel:  testFlashName,
 			wantTurns:  1,
 			wantImages: 1,
-			wantImage:  flashDef.ImageOutput,
-			wantTotal:  flashDef.ImageOutput,
+			wantImage:  flashDef.ImagePrices["1K"],
+			wantTotal:  flashDef.ImagePrices["1K"],
 			noUsage:    true,
 		},
 		{
@@ -86,8 +87,8 @@ func TestAnalyzeSession(t *testing.T) {
 			wantModel:  testProName,
 			wantTurns:  2,
 			wantImages: 2,
-			wantImage:  2 * proDef.ImageOutput,
-			wantTotal:  2 * proDef.ImageOutput,
+			wantImage:  2 * proDef.ImagePrices["1K"],
+			wantTotal:  2 * proDef.ImagePrices["1K"],
 			noUsage:    true,
 		},
 		{
@@ -123,8 +124,71 @@ func TestAnalyzeSession(t *testing.T) {
 			wantModel:  testFlashName,
 			wantTurns:  1,
 			wantImages: 1,
-			wantImage:  flashDef.ImageOutput,
-			wantTotal:  flashDef.ImageOutput,
+			wantImage:  flashDef.ImagePrices["1K"],
+			wantTotal:  flashDef.ImagePrices["1K"],
+			noUsage:    true,
+		},
+		{
+			name: "pro session with 4K size",
+			setup: func(t *testing.T) string {
+				dir := t.TempDir()
+				return writeSessionFile(t, dir, "test.session.json", sessionData{
+					Model: testProName,
+					Size:  "4K",
+					History: []*genai.Content{
+						{Role: "user", Parts: []*genai.Part{{Text: "landscape"}}},
+						{Role: "model", Parts: []*genai.Part{
+							{InlineData: &genai.Blob{MIMEType: "image/png", Data: []byte("img1")}},
+						}},
+					},
+				})
+			},
+			wantModel:  testProName,
+			wantTurns:  1,
+			wantImages: 1,
+			wantImage:  proDef.ImagePrices["4K"],
+			wantTotal:  proDef.ImagePrices["4K"],
+			noUsage:    true,
+		},
+		{
+			name: "legacy session no size defaults to 1K",
+			setup: func(t *testing.T) string {
+				dir := t.TempDir()
+				return writeSessionFile(t, dir, "test.session.json", sessionData{
+					Model: testProName,
+					History: []*genai.Content{
+						{Role: "user", Parts: []*genai.Part{{Text: "hi"}}},
+						{Role: "model", Parts: []*genai.Part{{InlineData: &genai.Blob{MIMEType: "image/png", Data: []byte("img")}}}},
+					},
+				})
+			},
+			wantModel:  testProName,
+			wantTurns:  1,
+			wantImages: 1,
+			wantImage:  proDef.ImagePrices["1K"],
+			wantTotal:  proDef.ImagePrices["1K"],
+			noUsage:    true,
+		},
+		{
+			name: "flash-3.1 session with 2K size",
+			setup: func(t *testing.T) string {
+				dir := t.TempDir()
+				return writeSessionFile(t, dir, "test.session.json", sessionData{
+					Model: "flash-3.1",
+					Size:  "2K",
+					History: []*genai.Content{
+						{Role: "user", Parts: []*genai.Part{{Text: "a cat"}}},
+						{Role: "model", Parts: []*genai.Part{
+							{InlineData: &genai.Blob{MIMEType: "image/png", Data: []byte("img")}},
+						}},
+					},
+				})
+			},
+			wantModel:  "flash-3.1",
+			wantTurns:  1,
+			wantImages: 1,
+			wantImage:  flash31Def.ImagePrices["2K"],
+			wantTotal:  flash31Def.ImagePrices["2K"],
 			noUsage:    true,
 		},
 		{

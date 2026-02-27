@@ -17,7 +17,7 @@ The goal is an image that matches the user's intent. Each section builds toward 
 
 Identify what the user wants: generating a new image, editing an existing one, iterating on a previous generation, or rendering text (posters, signs, logos). If editing or iterating, identify the source image or session file. If the request is too vague to construct a strong prompt, ask focused questions about the missing elements rather than guessing.
 
-Choose the model. Flash (default) handles most tasks and costs less. Pro produces higher fidelity at higher cost. Use flash unless the user requests pro or the task demands it. Concrete triggers for Pro: rendered text (Pro has under 10% error rate; Flash is unreliable), high resolution (Pro supports 2K/4K via `-z`; Flash is 1K only), or previous flash attempts produced unsatisfactory results. If the user wants a specific model version for its rendering style, use a pinned name (`flash-2.5`, `flash-3.1`, `pro-3.0`).
+Choose the model. Flash (default) handles most tasks and costs less. Pro produces higher fidelity at higher cost. Use flash unless the user requests pro or the task demands it. Both Flash 3.1 and Pro support 2K/4K output via `-z`. Concrete triggers for Pro: rendered text (Pro has under 10% error rate; Flash is unreliable), or previous flash attempts produced unsatisfactory results. If the user wants a specific model version for its rendering style, use a pinned name (`flash-2.5`, `flash-3.1`, `pro-3.0`).
 
 Choose the aspect ratio from the supported set: 1:1 (default), 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9. Match the ratio to the content and justify the choice briefly when presenting the command.
 
@@ -56,7 +56,7 @@ Flags:
 - `-s` session file to continue from (optional)
 - `-m` model: flash (default), pro, flash-2.5, flash-3.1, pro-3.0. Bare names are aliases for the latest version; pinned names lock to a specific model.
 - `-r` aspect ratio (default 1:1)
-- `-z` output resolution: 1K, 2K, or 4K (pro only)
+- `-z` output resolution: 1K, 2K, or 4K (flash-3.1, pro-3.0)
 - `-f` overwrite output and session files if they exist
 
 Every invocation produces a session file by replacing the output extension with `.session.json` (`cat.png` creates `cat.session.json`). This session file contains the model name and full conversation history. The `-s` flag is read-only: it loads history but the new session always saves alongside `-o`. This preserves the source session file so the user can rewind or branch from any point. Without `-f`, the CLI refuses to write if the derived session path collides with the `-s` source. With `-f`, the source session is overwritten.

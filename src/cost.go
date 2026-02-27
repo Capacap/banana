@@ -10,6 +10,8 @@ import (
 type costBreakdown struct {
 	File         string
 	Model        string
+	Size         string // resolved size for pricing: "1K", "2K", "4K"
+	SizeFromData bool   // true if session contained explicit size data
 	Turns        int
 	OutputImages int
 	Usage        *usageData
@@ -46,9 +48,17 @@ func analyzeSession(path string) (*costBreakdown, error) {
 
 	turns := (len(sess.History) + 1) / 2
 
+	size := sess.Size
+	sizeFromData := size != ""
+	if size == "" {
+		size = "1K"
+	}
+
 	cb := &costBreakdown{
 		File:         filepath.Base(path),
 		Model:        model,
+		Size:         size,
+		SizeFromData: sizeFromData,
 		Turns:        turns,
 		OutputImages: outputImages,
 		Usage:        sess.Usage,
@@ -63,7 +73,11 @@ func analyzeSession(path string) (*costBreakdown, error) {
 		cb.InputCost = float64(sess.Usage.PromptTokens) * def.InputPerMTok / 1_000_000
 		cb.OutputCost = float64(sess.Usage.CandidateTokens) * def.OutputPerMTok / 1_000_000
 	}
-	cb.ImageCost = float64(outputImages) * def.ImageOutput
+	if price, ok := def.ImagePrices[size]; ok {
+		cb.ImageCost = float64(outputImages) * price
+	} else {
+		cb.ImageCost = float64(outputImages) * def.ImagePrices["1K"]
+	}
 	cb.Total = cb.InputCost + cb.OutputCost + cb.ImageCost
 
 	return cb, nil
@@ -108,14 +122,18 @@ func runCostFile(path string) error {
 	}
 
 	if known {
-		fmt.Printf("images:  %d ($%s)\n", cb.OutputImages, formatCost(cb.ImageCost))
+		sizeNote := cb.Size
+		if !cb.SizeFromData {
+			sizeNote += " (assumed)"
+		}
+		fmt.Printf("images:  %d @ %s ($%s)\n", cb.OutputImages, sizeNote, formatCost(cb.ImageCost))
 		fmt.Printf("total:   ~$%s\n", formatCost(cb.Total))
 	} else {
 		fmt.Printf("images:  %d\n", cb.OutputImages)
 		fmt.Printf("total:   unknown (unrecognized model)\n")
 	}
 
-	fmt.Printf("\nprices collected %s; image costs assume 1K output\n", pricesCollected)
+	fmt.Printf("\nprices collected %s\n", pricesCollected)
 	return nil
 }
 
@@ -151,7 +169,11 @@ func runCostDir(dir string) error {
 		} else {
 			unpriced++
 		}
-		fmt.Printf("  %-30s %-10s turns=%-3d images=%-3d %s\n", cb.File, cb.Model, cb.Turns, cb.OutputImages, costStr)
+		sizeStr := cb.Size
+		if !cb.SizeFromData {
+			sizeStr += "?"
+		}
+		fmt.Printf("  %-30s %-10s %-3s turns=%-3d images=%-3d %s\n", cb.File, cb.Model, sizeStr, cb.Turns, cb.OutputImages, costStr)
 		totalCost += cb.Total
 		totalImages += cb.OutputImages
 	}
@@ -161,7 +183,7 @@ func runCostDir(dir string) error {
 		totalLine += fmt.Sprintf(" (%d unpriced)", unpriced)
 	}
 	fmt.Println(totalLine)
-	fmt.Printf("\nprices collected %s; image costs assume 1K output\n", pricesCollected)
+	fmt.Printf("\nprices collected %s\n", pricesCollected)
 	return nil
 }
 

@@ -20,6 +20,7 @@ type usageData struct {
 
 type sessionData struct {
 	Model   string           `json:"model"`
+	Size    string           `json:"size,omitempty"`
 	History []*genai.Content `json:"history"`
 	Usage   *usageData       `json:"usage,omitempty"`
 }

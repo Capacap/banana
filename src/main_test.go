@@ -89,16 +89,40 @@ func TestParseAndValidateFlags(t *testing.T) {
 			wantErr: "invalid size",
 		},
 		{
-			name:    "size without pro",
-			args:    []string{"-p", "a cat", "-o", "out.png", "-z", "2k"},
-			wantErr: "pro model",
+			name:    "size with single-size model",
+			args:    []string{"-p", "a cat", "-o", "out.png", "-m", "flash-2.5", "-z", "2k"},
+			wantErr: "not supported by flash-2.5",
 		},
 		{
-			name: "valid size normalized",
+			name: "valid size normalized with pro",
 			args: []string{"-p", "a cat", "-o", "out.png", "-m", "pro", "-z", "2k"},
 			check: func(t *testing.T, opts *options) {
 				if opts.size != "2K" {
 					t.Errorf("size = %q, want %q", opts.size, "2K")
+				}
+			},
+		},
+		{
+			name: "valid size with flash-3.1",
+			args: []string{"-p", "a cat", "-o", "out.png", "-m", "flash-3.1", "-z", "2k"},
+			check: func(t *testing.T, opts *options) {
+				if opts.size != "2K" {
+					t.Errorf("size = %q, want %q", opts.size, "2K")
+				}
+				if opts.model != "flash-3.1" {
+					t.Errorf("model = %q, want %q", opts.model, "flash-3.1")
+				}
+			},
+		},
+		{
+			name: "valid size with bare flash alias",
+			args: []string{"-p", "a cat", "-o", "out.png", "-z", "4k"},
+			check: func(t *testing.T, opts *options) {
+				if opts.size != "4K" {
+					t.Errorf("size = %q, want %q", opts.size, "4K")
+				}
+				if opts.model != testFlashName {
+					t.Errorf("model = %q, want %q", opts.model, testFlashName)
 				}
 			},
 		},

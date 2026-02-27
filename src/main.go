@@ -19,17 +19,18 @@ type modelDef struct {
 	ID             string
 	Family         string
 	MaxInputImages int
-	InputPerMTok   float64 // USD per 1M input tokens
-	OutputPerMTok  float64 // USD per 1M output text tokens
-	ImageOutput    float64 // USD per generated output image
+	InputPerMTok   float64            // USD per 1M input tokens
+	OutputPerMTok  float64            // USD per 1M output text tokens
+	Sizes          []string           // supported output sizes, e.g. ["1K"] or ["1K","2K","4K"]
+	ImagePrices    map[string]float64 // size -> per-image USD cost
 }
 
 const pricesCollected = "2026-02-26"
 
 var modelDefs = map[string]modelDef{
-	"flash-2.5": {ID: "gemini-2.5-flash-image", Family: "flash", MaxInputImages: 3, InputPerMTok: 0.30, OutputPerMTok: 0.60, ImageOutput: 0.039},
-	"flash-3.1": {ID: "gemini-3.1-flash-image-preview", Family: "flash", MaxInputImages: 14, InputPerMTok: 0.25, OutputPerMTok: 1.50, ImageOutput: 0.067},
-	"pro-3.0":   {ID: "gemini-3-pro-image-preview", Family: "pro", MaxInputImages: 14, InputPerMTok: 2.00, OutputPerMTok: 12.00, ImageOutput: 0.134},
+	"flash-2.5": {ID: "gemini-2.5-flash-image", Family: "flash", MaxInputImages: 3, InputPerMTok: 0.30, OutputPerMTok: 0.60, Sizes: []string{"1K"}, ImagePrices: map[string]float64{"1K": 0.039}},
+	"flash-3.1": {ID: "gemini-3.1-flash-image-preview", Family: "flash", MaxInputImages: 14, InputPerMTok: 0.25, OutputPerMTok: 1.50, Sizes: []string{"1K", "2K", "4K"}, ImagePrices: map[string]float64{"1K": 0.067, "2K": 0.101, "4K": 0.151}},
+	"pro-3.0":   {ID: "gemini-3-pro-image-preview", Family: "pro", MaxInputImages: 14, InputPerMTok: 2.00, OutputPerMTok: 12.00, Sizes: []string{"1K", "2K", "4K"}, ImagePrices: map[string]float64{"1K": 0.134, "2K": 0.134, "4K": 0.240}},
 }
 
 var modelAliases = map[string]string{
@@ -66,10 +67,6 @@ func validModelNames() string {
 	return strings.Join(names, ", ")
 }
 
-var validSizes = map[string]bool{
-	"1K": true, "2K": true, "4K": true,
-}
-
 const maxInputFileSize = 7 * 1024 * 1024 // 7 MB inline limit
 const outputPerm = 0644
 
@@ -102,7 +99,7 @@ flags:
   -s   session file to continue from
   -m   model: flash (default), pro, flash-2.5, flash-3.1, pro-3.0
   -r   aspect ratio: 1:1 (default), 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9
-  -z   output size: 1K, 2K, 4K (requires -m pro)
+  -z   output size: 1K, 2K, 4K (flash-3.1, pro-3.0)
   -f   overwrite existing output and session files
 
 subcommands:
@@ -216,7 +213,7 @@ func run(args []string) error {
 			TotalTokens:     result.UsageMetadata.TotalTokenCount,
 		}
 	}
-	sessBytes, err := json.Marshal(sessionData{Model: opts.model, History: chat.History(true), Usage: usage})
+	sessBytes, err := json.Marshal(sessionData{Model: opts.model, Size: opts.size, History: chat.History(true), Usage: usage})
 	if err != nil {
 		return fmt.Errorf("failed to serialize session: %v", err)
 	}
@@ -239,7 +236,7 @@ func parseAndValidateFlags(args []string) (*options, error) {
 	session := fs.String("s", "", "session file to continue from")
 	model := fs.String("m", "flash", "model name")
 	ratio := fs.String("r", "1:1", "aspect ratio: 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9")
-	size := fs.String("z", "", "output size: 1k, 2k, or 4k (pro model only)")
+	size := fs.String("z", "", "output size: 1K, 2K, or 4K (flash-3.1, pro-3.0)")
 	force := fs.Bool("f", false, "overwrite output and session files if they exist")
 
 	if err := fs.Parse(args); err != nil {
@@ -271,11 +268,25 @@ func parseAndValidateFlags(args []string) (*options, error) {
 	var imageSize string
 	if *size != "" {
 		normalized := strings.ToUpper(*size)
-		if !validSizes[normalized] {
-			return nil, fmt.Errorf("invalid size %q: use 1K, 2K, or 4K", *size)
+		if len(def.Sizes) <= 1 {
+			var alts []string
+			for name, d := range modelDefs {
+				if len(d.Sizes) > 1 {
+					alts = append(alts, name)
+				}
+			}
+			sort.Strings(alts)
+			return nil, fmt.Errorf("-z is not supported by %s; models with size control: %s", resolved, strings.Join(alts, ", "))
 		}
-		if def.Family != "pro" {
-			return nil, fmt.Errorf("-z (size) requires a pro model")
+		found := false
+		for _, s := range def.Sizes {
+			if s == normalized {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("invalid size %q for %s: supported sizes are %s", normalized, resolved, strings.Join(def.Sizes, ", "))
 		}
 		imageSize = normalized
 	}
