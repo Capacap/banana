@@ -513,6 +513,77 @@ func TestLoadSession(t *testing.T) {
 	}
 }
 
+func TestThoughtSignatureRoundTrip(t *testing.T) {
+	// Simulate a Flash 3.1 response history with thought parts and signatures.
+	// This mirrors what chat.History(true) returns after a generation call.
+	sig := []byte("opaque-signature-bytes-from-api")
+
+	original := sessionData{
+		Model: "flash-3.1",
+		History: []*genai.Content{
+			// User turn: text prompt + inline image
+			{Role: "user", Parts: []*genai.Part{
+				{Text: "edit this image"},
+				{InlineData: &genai.Blob{MIMEType: "image/png", Data: []byte("fake-png")}},
+			}},
+			// Model turn: thought part with signature, then text, then image output
+			{Role: "model", Parts: []*genai.Part{
+				{Text: "Let me think about this...", Thought: true, ThoughtSignature: sig},
+				{Text: "Here is your edited image"},
+				{InlineData: &genai.Blob{MIMEType: "image/png", Data: []byte("fake-output")}},
+			}},
+		},
+	}
+
+	// Marshal (what run() does when saving)
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	// Unmarshal (what readSession does when loading)
+	var loaded sessionData
+	if err := json.Unmarshal(data, &loaded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if len(loaded.History) != 2 {
+		t.Fatalf("history length = %d, want 2", len(loaded.History))
+	}
+
+	modelParts := loaded.History[1].Parts
+	if len(modelParts) != 3 {
+		t.Fatalf("model parts = %d, want 3", len(modelParts))
+	}
+
+	// Thought part: verify Thought flag and ThoughtSignature survive
+	thoughtPart := modelParts[0]
+	if !thoughtPart.Thought {
+		t.Error("thought part lost Thought=true flag")
+	}
+	if !bytes.Equal(thoughtPart.ThoughtSignature, sig) {
+		t.Errorf("ThoughtSignature = %v, want %v", thoughtPart.ThoughtSignature, sig)
+	}
+
+	// Non-thought text part: should have no thought fields
+	textPart := modelParts[1]
+	if textPart.Thought {
+		t.Error("text part should not have Thought=true")
+	}
+	if textPart.ThoughtSignature != nil {
+		t.Error("text part should not have ThoughtSignature")
+	}
+
+	// Verify the JSON contains expected fields
+	jsonStr := string(data)
+	if !strings.Contains(jsonStr, "thought") {
+		t.Error("JSON should contain 'thought' field")
+	}
+	if !strings.Contains(jsonStr, "thoughtSignature") {
+		t.Error("JSON should contain 'thoughtSignature' field")
+	}
+}
+
 func TestExtractResult(t *testing.T) {
 	imgBytes := []byte("fake-image-data")
 
