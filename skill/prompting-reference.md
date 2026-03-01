@@ -109,6 +109,45 @@ Make one edit per turn. Large changes across multiple elements cause drift, espe
 
 Know when to abandon a session chain. Long chains accumulate drift; details established early (boot size, color choices, proportions) can silently regress as the conversation grows. If the model starts forgetting established details after 3-4 turns, start a fresh generation with a complete prompt rather than continuing to correct within the session. Carry forward the language that worked, not the session history.
 
+## Generation Strategies
+
+SKILL.md names three strategies: one-shot, incremental, and composite. This section provides practical guidance for each.
+
+### One-Shot
+
+A single prompt produces the complete image. This is the default and handles the majority of generations. Write the full scene description as one prompt, execute, diagnose. Most images should start here. Only shift to incremental or composite when one-shot produces a specific problem that the other strategies address.
+
+### Incremental Building
+
+Build complexity across session turns. Start with the hardest element or the structural foundation, then add details in subsequent passes. Each turn uses the session file so the model sees and builds on previous results.
+
+When to use incremental: the subject has unusual anatomy or proportions that fight model priors, the scene has a specific spatial layout that needs to be established before populating it with detail, or a previous one-shot attempt got the overall composition right but dropped fine details.
+
+Practical sequence for a complex character:
+1. Generate the figure with correct proportions, pose, and key silhouette features. Keep the background simple.
+2. Add clothing, accessories, and surface detail. Reference specific elements: "add a leather satchel on the left hip, strap crossing the chest."
+3. Refine lighting, atmosphere, and final detail. This is also where you push stylistic choices.
+
+Practical sequence for an environment:
+1. Generate the background and major structural elements: architecture, terrain, sky.
+2. Add foreground elements and populate the midground.
+3. Refine atmosphere, lighting, and detail.
+
+Each turn's prompt should be short and directive. The model has the image from the session; it needs instructions, not a redescription. "Add ivy growing up the left wall, partially covering the lower window" is better than restating the entire scene with ivy added.
+
+### Composite Reference
+
+Generate components as separate images, then combine them as input references for a final generation. Each component gets its own prompt optimized for that element in isolation.
+
+When to use composite: a character design and an environment need to merge (generate each separately, then combine), a specific pose from one image needs to carry into a different character or style, or multiple style references need to inform a single output.
+
+Practical sequence for character-in-environment:
+1. Generate the character in isolation against a clean background. Get proportions, details, and style right.
+2. Generate the environment separately, optimized for atmosphere and composition.
+3. Pass both as input references with a prompt that combines them: "Place the character from the first image into the environment from the second image. Match the lighting from the environment. Preserve the character's proportions, clothing, and face exactly."
+
+Composite works because each component gets full prompt attention. A one-shot prompt splitting focus between a complex character and a complex environment forces the model to compromise on both. Composite lets each element be generated at full fidelity.
+
 ## Advanced Techniques
 
 ### Camera and Lens for Photorealism
@@ -147,13 +186,14 @@ Flash 3.1 and Pro support up to 14 reference images per prompt. Flash 2.5 suppor
 
 ### Text Rendering
 
-Pro is more reliable for text rendering. For best results:
+Flash 3.1 handles single-line text reasonably well. Pro is more reliable for multi-line layouts or when exact text accuracy is critical. For best results:
 
 - Specify exact text in quotes
 - Describe font characteristics rather than naming fonts: "bold condensed sans-serif," "elegant flowing script"
 - Specify placement: "centered in the upper third," "along the bottom edge"
 - Specify color with hex codes
 - Keep text simple; complex multi-line layouts may need iteration
+- If Flash produces text errors (wrong letters, missing words), try once more with the text re-emphasized before switching to Pro
 
 ## Anti-Patterns
 

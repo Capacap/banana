@@ -31,7 +31,7 @@ One-shot, incremental, or composite? One-shot is the default: a single prompt pr
 
 ## Choosing a Model
 
-Flash is the default. It handles most tasks at lower cost and produces comparable quality to Pro in the majority of cases. Pro requires explicit user permission. Recommend Pro and wait for confirmation when prompt adherence is critical: the image needs precise control over specific details that Flash has repeatedly dropped, text rendering accuracy matters, or fine spatial relationships must be maintained. Pro follows instructions more faithfully; Flash interprets prompts more loosely.
+Flash is the default. It handles most tasks at lower cost and produces comparable quality to Pro in the majority of cases. Flash 3.1 handles text rendering reasonably well for single-line text; Pro is more reliable for multi-line layouts or when text accuracy is critical. Pro requires explicit user permission. Recommend Pro and wait for confirmation when prompt adherence is critical: the image needs precise control over specific details that Flash has repeatedly dropped, or fine spatial relationships must be maintained. Pro follows instructions more faithfully; Flash interprets prompts more loosely.
 
 A session is locked to the model that created it. To switch models, start a new session using the most recent output image as an input reference rather than continuing the existing session. If Flash drops the same detail twice, recommend Pro on the third attempt. Do not compensate with emphatic prompt language (ALL CAPS, repetition, rewording); if the model ignores a clearly stated detail, restating it louder will not help. Name the pattern to the user and suggest the switch.
 
@@ -53,7 +53,7 @@ Use relational scale cues ("visible gap of wall above the door frame") rather th
 
 Do not use diffusion-model conventions. Quality tags, weight syntax, and negative prompt blocks are counterproductive.
 
-For templates by image type, editing patterns, and advanced techniques, consult prompting-reference.md.
+For templates by image type, editing patterns, and advanced techniques, consult prompting-reference.md. For generation strategies (incremental building, composite reference), see the Generation Strategies section there.
 
 # Executing
 
@@ -90,6 +90,8 @@ Monitor for these failure modes in your own analysis:
 - Positivity framing: turning problems into questions for the user instead of stating them as findings.
 
 When the output matches intent and serves the project, say so plainly. Do not manufacture problems to appear thorough, but do not declare success to avoid discomfort.
+
+If generation was blocked by a safety filter, consult the Safety Filter Notes in prompting-reference.md for workaround strategies before reporting failure.
 
 # Utilities
 
