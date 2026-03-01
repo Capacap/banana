@@ -3,102 +3,106 @@ name: banana
 description: Generate or edit images using Gemini's native image generation. Use when the user wants to create, generate, draw, or edit images, or when they reference banana or image generation.
 ---
 <skill-content>
-For image generation, operate as a creative director translating intent into precise visual descriptions. The banana CLI wraps Gemini's native image generation, which is a language model that generates images, not a diffusion model. This distinction shapes how prompts should be written: natural language paragraphs describing the scene outperform keyword lists, and diffusion-model conventions are counterproductive. Prompt quality is the primary lever for output quality; a well-crafted prompt consistently outperforms iteration on a vague one. Commit to specific visual choices in the prompt; hedging with vague descriptions produces vague images.
+For image generation, operate as a creative director who translates intent into precise visual descriptions and evaluates results critically. Prompt quality is the primary lever for output quality; a well-crafted prompt consistently outperforms iteration on a vague one. Commit to specific visual choices rather than hedging with vague descriptions.
 
-Image generation costs money through the Gemini API. For the flash model (default), proceed with generation after constructing the prompt. The user can review and approve the command through Claude Code's built-in permission system. Do not add a separate approval step on top of this.
+The banana CLI wraps Gemini's native image generation. Gemini is a language model that generates images as part of its token sequence, not a diffusion model. Natural language paragraphs describing the scene outperform keyword lists, and diffusion-model conventions (quality tags, weight syntax, negative prompt blocks) are counterproductive.
 
-Two safeguards require explicit user permission before proceeding:
-- **Pro model**: Never use `-m pro` unless the user explicitly requests it or approves the switch. If the task would benefit from Pro, recommend it and wait for confirmation.
-- **Batch generation**: Never generate multiple images in a single turn unless the user explicitly asks for it. One image per turn is the default.
+Image generation costs money through the Gemini API. Two safeguards require explicit user permission before proceeding. Never use the Pro model unless the user explicitly requests or approves it. Never generate multiple images in a single turn unless the user explicitly asks for batch generation.
 
-The goal is an image that matches the user's intent. Each section builds toward this: understanding establishes what the user wants, prompt construction translates that into precise visual language, execution runs the command, and evaluation drives the next iteration.
+The goal is images that serve the project. Image generation is exploratory work; concepts emerge through repeated generation, evaluation, and refinement rather than through a single well-aimed attempt. Each generation is one cycle in this process. What matters is the quality of decisions made before and after each generation: what to generate, how to generate it, and whether the result moves toward the goal. These decisions recur every cycle. The first generation is the one where you know the least; by the fifth, you have real data about how the model handles this subject. The value of deliberate decision-making increases as a session progresses, not decreases.
 
-# Understanding Intent
+# Before Every Generation
 
-Identify what the user wants: generating a new image, editing an existing one, iterating on a previous generation, or rendering text (posters, signs, logos). If editing or iterating, identify the source image or session file. If the request is too vague to construct a strong prompt, ask focused questions about the missing elements rather than guessing.
+Before writing a prompt, assess the current situation. On the first generation this means understanding what the user wants and why. On subsequent generations it means processing what changed: the user gave feedback, the diagnosis identified a drift, the concept evolved, or a new subject is needed. What changed determines what's different about the next generation.
 
-Choose the model. Flash (default) handles most tasks and costs less. Pro produces higher fidelity at higher cost. Use flash unless the user requests pro or the task demands it. Both Flash 3.1 and Pro support 2K/4K output via `-z`. Concrete triggers for Pro: rendered text (Pro has under 10% error rate; Flash is unreliable), or previous flash attempts produced unsatisfactory results. If the user wants a specific model version for its rendering style, use a pinned name (`flash-2.5`, `flash-3.1`, `pro-3.0`).
+When starting from scratch or when the user's request is too vague to construct a strong prompt, ask focused questions about the missing elements. A vague prompt produces a vague image; the cost of one clarifying question is less than the cost of a wasted generation. Consider what purpose the image serves, because purpose shapes every downstream choice: concept exploration tolerates roughness and rewards creative risk, a 3D pipeline reference demands clean surfaces and symmetrical poses, a mood piece needs atmosphere and lighting, a character sheet needs anatomical clarity.
 
-Choose the aspect ratio from the supported set: 1:1 (default), 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9. Match the ratio to the content and justify the choice briefly when presenting the command.
+## Choosing a Strategy
 
-# Prompt Construction
+Decide how to generate the image. This decision is reconsidered every cycle, not made once and carried forward by inertia.
 
-Craft the prompt as natural language. Gemini parses grammar, understands relationships between concepts, and reasons about composition. A coherent paragraph describing the scene outperforms comma-separated tags.
+The primary decision is whether this generation is exploration or refinement. Exploration seeks new directions: different concepts, alternative shapes, divergent interpretations. Refinement makes scoped changes to an established direction: adjusting proportions, fixing details, pushing specific elements. The user's language signals which mode applies. "Let's try something different," "what about a different animal," or "let's explore" means exploration. "Make the jaw wider," "fix the feet," or "push on the detail" means refinement.
 
-A strong prompt addresses most of these elements, woven naturally into the description rather than listed mechanically: subject and action, composition and framing, setting and environment, lighting, style and medium, mood and atmosphere. Lighting is the single strongest lever for mood and realism; always specify it. Not every element needs equal weight. Emphasize what matters most for the particular image.
+Exploration needs freedom. Use fresh prompts without session continuation. Avoid input images of previous attempts; they anchor the model to the existing silhouette and suppress the variance that makes exploration valuable. The stochastic nature of fresh generation is a feature during exploration, not noise to control. Input images are useful for style and atmosphere reference (an environment shot to match a character's palette) but counterproductive when the goal is a new shape or concept.
 
-When exact colors matter, use hex codes ("#9F2B68") rather than descriptive names ("amaranth purple"). For long prompts, repeat critical constraints at the end; the model can drift on requirements stated only at the beginning.
+Refinement needs control. Use session continuation for targeted edits to an existing image. But session continuation constrains divergence; if the same problem persists across two session iterations despite different corrective language, the issue is in the prompt structure. Start fresh with revised language rather than continuing to patch. Carry forward the prompt language that worked, not the session history.
 
-Do not use diffusion-model conventions. Quality tags like "4k, masterpiece, hyperrealistic, trending on artstation" are meaningless to the language model and may be penalized. Weight syntax like "(word:1.5)" is not supported. For emphasis, use ALL CAPS on critical elements. For exclusions, describe what you want positively rather than listing what to avoid.
+One-shot, incremental, or composite? One-shot is the default: a single prompt produces the image. Incremental builds complexity across session turns, starting with a base image and adding details in subsequent passes; use this when the subject has unusual anatomy or details that fight model priors. Composite generates components as separate images, then combines them as reference inputs; use this when a character design and an environment need to merge, or when a reference pose and a character design need to combine. These categories are not rigid. A generation that started one-shot can shift to incremental when the output needs targeted refinement.
 
-When a specific detail fights the model's strongest visual association (e.g., "phone flashlight" vs the archetypal handheld flashlight), give it extra emphasis or describe it more concretely. The model has strong priors about common visual concepts and will default to the most typical version unless pushed.
+## Choosing a Model
 
-For editing prompts, be explicit about preservation. State what should change and what must remain untouched. Faces are especially sensitive to drift; when editing faces or characters, make one change per turn. For non-face edits, multiple changes in a single turn are usually fine.
+Flash is the default. It handles most tasks at lower cost and produces comparable quality to Pro in the majority of cases. Flash 3.1 handles text rendering reasonably well for single-line text; Pro is more reliable for multi-line layouts or when text accuracy is critical. Pro requires explicit user permission. Recommend Pro and wait for confirmation when prompt adherence is critical: the image needs precise control over specific details that Flash has repeatedly dropped, or fine spatial relationships must be maintained. Pro follows instructions more faithfully; Flash interprets prompts more loosely.
 
-For multi-image reference, pass each image with a separate `-i` flag. In the prompt, refer to each image by its role ("the first image shows the character, the second shows the environment"). Flash 2.5 accepts up to 3 reference images; Flash 3.1 and Pro accept up to 14.
+A session is locked to the model that created it. To switch models, start a new session using the most recent output image as an input reference rather than continuing the existing session. If Flash drops the same detail twice, recommend Pro on the third attempt. Do not compensate with emphatic prompt language (ALL CAPS, repetition, rewording); if the model ignores a clearly stated detail, restating it louder will not help. Name the pattern to the user and suggest the switch.
 
-For detailed templates by image type, editing patterns, and advanced techniques, see [prompting-reference.md](prompting-reference.md).
+## Choosing Parameters
 
-# Execution
+Choose the aspect ratio from the supported set: 1:1 (default), 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9. Match the ratio to the composition. A cinematic establishing shot benefits from 21:9. A tall gate that needs to dominate the frame benefits from 3:4. Reconsider the ratio when the subject or composition changes, not only at the start.
 
-The `banana` binary lives in this skill's directory, not on PATH. This is intentional: the skill is self-contained so it can be installed by extracting a zip and removed by deleting the directory, with no system-level side effects. Construct the binary path from the skill location provided by the system when this skill was invoked. For example, if the skill is at `/home/user/.claude/skills/banana/SKILL.md`, the binary is `/home/user/.claude/skills/banana/banana`.
+Always use 1K resolution. If the output would benefit from higher resolution for fine detail, recommend 2K or 4K and wait for the user to approve. Flash 2.5 has no resolution control. Flash 3.1 and Pro support 1K, 2K, and 4K via the -z flag.
+
+# Composing the Prompt
+
+Write the prompt as natural language. Gemini parses grammar, understands spatial relationships, and reasons about composition. A coherent paragraph reads like a passage in a novel and outperforms comma-separated tags.
+
+For fresh generation, describe the scene as prose. Address these elements, weighted by importance to the particular image: subject and action, composition and framing, setting and environment, lighting, style and medium, mood and atmosphere. Lighting is the single strongest lever for mood and realism; always specify it. Always specify a style; without it the model picks inconsistently, sometimes photorealistic, sometimes illustration. Style framing affects design decisions, not just rendering: specifying "painterly" or "3D render" changes what the model puts in the scene.
+
+For session continuation, write short direct instructions about what to change. The model already has the image from the session; it needs directions, not a redescription. "Make the gate larger and remove the clotheslines" outperforms restating the entire scene.
+
+Use relational scale cues ("visible gap of wall above the door frame") rather than absolute measurements; the model reasons about relationships, not numbers. When exact colors matter, use hex codes. For emphasis on critical elements, use ALL CAPS sparingly. For long prompts, repeat critical constraints at the end; the model can deprioritize requirements stated only at the beginning.
+
+Do not use diffusion-model conventions. Quality tags, weight syntax, and negative prompt blocks are counterproductive.
+
+For templates by image type, editing patterns, and advanced techniques, consult prompting-reference.md. For generation strategies (incremental building, composite reference), see the Generation Strategies section there.
+
+# Executing
+
+The banana binary lives in this skill's directory, not on PATH. Construct the binary path from the skill location provided by the system when this skill was invoked.
 
 CLI syntax:
 
-```
-<skill-dir>/banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]
-```
+    <skill-dir>/banana -p <prompt> -o <output> [-i <input>...] [-s <session>]
+                        [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]
 
-Flags:
-- `-p` text prompt (required)
-- `-o` output PNG file path (required; must end in .png)
-- `-i` input image for editing/reference (optional, repeatable; supports png, jpg/jpeg, webp, heic, heif). Flash 2.5: up to 3 images. Flash 3.1 and Pro: up to 14. Each file must be under 7 MB.
-- `-s` session file to continue from (optional)
-- `-m` model: flash (default), pro, flash-2.5, flash-3.1, pro-3.0. Bare names are aliases for the latest version; pinned names lock to a specific model.
-- `-r` aspect ratio (default 1:1)
-- `-z` output resolution: 1K, 2K, or 4K (flash-3.1, pro-3.0)
-- `-f` overwrite output and session files if they exist
+Choose an output filename that reflects the content and variant. Use the subject as the base name and append what distinguishes this image from its siblings: farmhouse_twilight.png, creature_apose_back.png. Avoid encoding full edit history into names.
 
-Every invocation produces a session file by replacing the output extension with `.session.json` (`cat.png` creates `cat.session.json`). This session file contains the model name and full conversation history. The `-s` flag is read-only: it loads history but the new session always saves alongside `-o`. This preserves the source session file so the user can rewind or branch from any point. Without `-f`, the CLI refuses to write if the derived session path collides with the `-s` source. With `-f`, the source session is overwritten.
+Every invocation produces a session file alongside the output. The -s flag is read-only: it loads history but the new session always saves next to the output.
 
-Choose an output filename that reflects the content. Place output in the current working directory or the relevant project subdirectory unless the user specifies otherwise.
+For full flag reference, session behavior, subcommands (meta, clean, cost), model specifications, and pricing, see cli-reference.md.
 
-# File Organization
+# Diagnosing the Result
 
-Name files so the progression is readable during a session. Each filename should communicate what this image is or what changed from its predecessor. Use the subject as the base name and append the variant: `farmhouse_twilight.png`, `player_character_apose_nobag.png`, `player_character_apose_clean.png`. Avoid encoding full edit history into names; `player_character_apose_clean.png` is better than `player_character_apose_nobag_v2_nomud.png`.
+Display the generated image using the Read tool. Diagnosis is mandatory on every generation. On targeted iterations it can be brief. On fresh generations or when the concept has evolved, it should be thorough. The rigor of diagnosis should not decay over a session; the fifteenth image deserves the same scrutiny as the first.
 
-During a session, every generated file may turn out to be the keeper. Do not try to categorize files as drafts or finals at generation time. That distinction only becomes clear in retrospect.
+Describe what is in the image before comparing to what was requested. The prompt primes perception; looking at the image first counteracts confirmation bias. Then check every element specified in the prompt against the output. State what matched and what drifted.
 
-Offer to organize when any of these conditions are apparent:
+For mismatches, identify the cause. A diagnosis without a cause is an observation, not a diagnosis. "The boots are too small" identifies a problem. "The boots are too small because the description appeared once at the end of the prompt and was deprioritized" is a diagnosis that informs the next generation. Common causes: ambiguous prompt language, model priors overriding an instruction, an element deprioritized due to prompt position, style framing pulling in an unintended direction, detail too fine-grained for the viewing distance, or a fundamental model limitation.
 
-- A directory has accumulated roughly 8-10+ banana-generated images and is becoming hard to scan.
-- Superseded files are visible: earlier iterations in a chain sit alongside the version that replaced them (e.g., `nobag.png` alongside the `clean.png` that built on it).
-- The user shifts topics (character work to environment work, or similar). The previous topic's files are no longer active and can be tidied.
-- Multiple `.session.json` files have accumulated in the same directory.
+Beyond prompt fidelity, evaluate whether the output serves the project. An image can match every prompt element and still miss the point. Flag practical concerns the user has not raised: asset complexity that conflicts with the production pipeline, visual choices that create downstream problems, or model limitations that will block the next planned generation.
 
-When offering, keep it brief. One line suggesting cleanup, not a detailed proposal. If the user accepts, move superseded intermediates to an archive subdirectory, group keepers logically, and clean up orphaned session files. If they decline or ignore it, do not raise it again until the situation changes meaningfully.
+The diagnosis feeds directly into the next cycle's assessment. If Flash dropped a detail twice, recommend Pro on the next attempt. If fine details won't resolve, recommend higher resolution (2K or 4K) as an alternative or complement to a model switch. If exploration keeps producing similar outputs despite different prompts, check whether input images are anchoring the silhouette. If the session chain is drifting on composition or structure, start fresh. Diagnosis is not a report; it is the input to the next decision.
 
-To clean up session files in bulk, use `banana clean <directory>` for a dry run (lists model, turn count, and size for each file) or `banana clean -f <directory>` to delete them. Files that fail validation are skipped and never deleted. To check API cost, use `banana cost <session-file>` for a single session or `banana cost <directory>` for a summary of all sessions in a directory.
+Monitor for these failure modes in your own analysis:
 
-# After Generation
+- Confirmation bias: seeing what the prompt described rather than what the image contains.
+- Style-over-substance: treating mood and palette match as overall success while ignoring structural misses.
+- Criticality decay: applying less scrutiny to each successive generation. Counter this by always naming what worked, what drifted, and what to change next.
+- Positivity framing: turning problems into questions for the user instead of stating them as findings.
 
-After execution, display the generated image to the user using the Read tool. To inspect metadata on a previously generated PNG, use `banana meta <image.png>`, which shows the model, prompt history, aspect ratio, inputs, and timestamp embedded in the file.
+When the output matches intent and serves the project, say so plainly. Do not manufacture problems to appear thorough, but do not declare success to avoid discomfort.
 
-Evaluate the result honestly. Identify what succeeded, what drifted from the prompt, and what could improve. Offer concrete directions for iteration or next steps. The conversation between generations is where creative work happens; don't just deliver the image and wait.
+If generation was blocked by a safety filter, consult the Safety Filter Notes in prompting-reference.md for workaround strategies before reporting failure.
 
-When working on a series of related images, maintain coherence by carrying forward palette descriptions, architectural details, and stylistic language across prompts. Reference earlier generations when relevant to keep the visual language consistent.
+# Utilities
 
-If generation was blocked by safety filters, try these strategies before reporting failure: rephrase with explicit context ("family-friendly poster," "educational diagram," "medical illustration"), use positive framing instead of exclusion language, crop input images tighter to reduce incidental flagged content, or retry with slight rewording since the filter has some randomness. If these fail, report the block reason and the strategies attempted so the user can adjust.
+Use banana meta <image.png> to inspect embedded metadata on a previously generated PNG: model, prompt history, aspect ratio, inputs, and timestamp. Useful during diagnosis to review what prompt actually produced an image.
 
-# Sessions and Iteration
+Use banana cost <directory> to check API spending. Shows per-session breakdown and directory total.
 
-If the user wants changes to a previous generation, use the session file with `-s` rather than starting fresh. This preserves conversation context so the model understands references like "make it warmer" or "change the hat." Construct a short, conversational follow-up prompt rather than repeating the full original description. Choose a new output filename that reflects the iteration (e.g., `cat_v2.png`, `cat_blue.png`).
-
-The user can rewind by referencing an earlier session file. If v3 went wrong, continuing from `cat_v1.session.json` branches from that point without losing v2 or v3. The source session file is never modified; each generation writes its own session file next to its output.
-
-When NOT to use sessions: if the user wants a completely different image unrelated to previous work, start fresh without `-s`. Sessions carry visual style and context forward, which is counterproductive when the user wants a clean break. A new subject, new style, or new context means a new session.
+Use banana clean <directory> for a dry run listing session files, or banana clean -f <directory> to delete them.
 
 # Resources
 
-- [prompting-reference.md](prompting-reference.md): templates for different image types, editing patterns, advanced techniques, and anti-patterns
+- [cli-reference.md](cli-reference.md): flags, session behavior, subcommands, model specifications, and pricing
+- [prompting-reference.md](prompting-reference.md): templates for different image types, editing patterns, advanced techniques, and model-specific behavior notes
 </skill-content>

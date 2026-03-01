@@ -1,6 +1,6 @@
 # Prompting Reference: Gemini Native Image Generation
 
-Gemini generates images as part of its token sequence. It is a language model, not a diffusion model. Prompts should read like natural language directions to a photographer or illustrator, not keyword lists. The model parses grammar, understands spatial relationships, and reasons about composition. Its context window (32K tokens) dwarfs diffusion model text encoders, so complex, detailed prompts are viable and encouraged.
+This reference supplements the main skill with detailed templates, editing patterns, and advanced techniques. Consult it during prompt composition for specific image types or when applying advanced prompting strategies.
 
 ## Prompt Structure
 
@@ -21,6 +21,7 @@ For long prompts, repeat critical constraints at the end. The model can drift on
 - **Positive framing** over negation. Instead of "no cars," write "an empty, deserted street with no signs of traffic." When exclusions are necessary, natural language works: "Do not include any text, watermarks, or line overlays."
 - **Hex colors** when exact colors matter. "#9F2B68" outperforms "amaranth purple" for precision.
 - **Markdown lists** for multiple constraints. The model's text encoder was trained on Markdown, so dashed lists improve instruction clarity.
+- **Re-emphasize critical details in every prompt.** Whether iterating in a session or starting fresh, do not assume the model remembers constraints from earlier turns. If boot size matters, describe the boots in every prompt. Repetition is not redundant; it is how you maintain consistency.
 
 ## Templates by Image Type
 
@@ -62,7 +63,7 @@ Specify: single subject, exact positioning, background color, space allocation, 
 
 ### Text-Heavy (Logos, Posters, Signs)
 
-Specify: exact text content in quotes, font characteristics (descriptive, not font names), placement, color, integration with imagery. Pro model strongly recommended for text accuracy.
+Specify: exact text content in quotes, font characteristics (descriptive, not font names), placement, color, integration with imagery.
 
 > A vintage-style concert poster for a jazz night. Headline text: "BLUE NOTE SESSIONS" in a bold, condensed sans-serif typeface, #E8D5B7 cream color, centered in the upper third. Subtitle: "Every Thursday at 9PM" in a lighter weight below. Background: smoky indigo (#2C1F4A) with a silhouetted trumpet player in the lower half. Art deco geometric border elements in gold (#C4A265). Textured paper grain overlay.
 
@@ -102,9 +103,50 @@ The autoregressive architecture can resist pure style transfer. If direct styliz
 
 > Replace the background behind the person with a sun-drenched Mediterranean terrace overlooking the sea. Keep the person, their clothing, hair, and all body details exactly the same. Adjust ambient lighting on the person to match warm, bright outdoor sunlight from the upper right. Add subtle environmental reflections in sunglasses if present.
 
-### Incremental Editing Strategy
+### Incremental Editing
 
 Make one edit per turn. Large changes across multiple elements cause drift, especially in faces. If v3 goes wrong, branch from an earlier session file rather than trying to fix everything in v4.
+
+Know when to abandon a session chain. Long chains accumulate drift; details established early (boot size, color choices, proportions) can silently regress as the conversation grows. If the model starts forgetting established details after 3-4 turns, start a fresh generation with a complete prompt rather than continuing to correct within the session. Carry forward the language that worked, not the session history.
+
+## Generation Strategies
+
+SKILL.md names three strategies: one-shot, incremental, and composite. This section provides practical guidance for each.
+
+### One-Shot
+
+A single prompt produces the complete image. This is the default and handles the majority of generations. Write the full scene description as one prompt, execute, diagnose. Most images should start here. Only shift to incremental or composite when one-shot produces a specific problem that the other strategies address.
+
+### Incremental Building
+
+Build complexity across session turns. Start with the hardest element or the structural foundation, then add details in subsequent passes. Each turn uses the session file so the model sees and builds on previous results.
+
+When to use incremental: the subject has unusual anatomy or proportions that fight model priors, the scene has a specific spatial layout that needs to be established before populating it with detail, or a previous one-shot attempt got the overall composition right but dropped fine details.
+
+Practical sequence for a complex character:
+1. Generate the figure with correct proportions, pose, and key silhouette features. Keep the background simple.
+2. Add clothing, accessories, and surface detail. Reference specific elements: "add a leather satchel on the left hip, strap crossing the chest."
+3. Refine lighting, atmosphere, and final detail. This is also where you push stylistic choices.
+
+Practical sequence for an environment:
+1. Generate the background and major structural elements: architecture, terrain, sky.
+2. Add foreground elements and populate the midground.
+3. Refine atmosphere, lighting, and detail.
+
+Each turn's prompt should be short and directive. The model has the image from the session; it needs instructions, not a redescription. "Add ivy growing up the left wall, partially covering the lower window" is better than restating the entire scene with ivy added.
+
+### Composite Reference
+
+Generate components as separate images, then combine them as input references for a final generation. Each component gets its own prompt optimized for that element in isolation.
+
+When to use composite: a character design and an environment need to merge (generate each separately, then combine), a specific pose from one image needs to carry into a different character or style, or multiple style references need to inform a single output.
+
+Practical sequence for character-in-environment:
+1. Generate the character in isolation against a clean background. Get proportions, details, and style right.
+2. Generate the environment separately, optimized for atmosphere and composition.
+3. Pass both as input references with a prompt that combines them: "Place the character from the first image into the environment from the second image. Match the lighting from the environment. Preserve the character's proportions, clothing, and face exactly."
+
+Composite works because each component gets full prompt attention. A one-shot prompt splitting focus between a complex character and a complex environment forces the model to compromise on both. Composite lets each element be generated at full fidelity.
 
 ## Advanced Techniques
 
@@ -125,15 +167,6 @@ Photography-specific status language improves composition. "Pulitzer-prize-winni
 
 Combine aesthetics with proportional guidance: "60% minimalist product photography, 30% lifestyle editorial, 10% fashion campaign." The model interpolates between referenced styles.
 
-### Multi-Stage Prompting
-
-For complex scenes, build in layers across a session:
-1. Generate the background/environment first
-2. Add the primary subject in the next turn
-3. Refine details, lighting, and atmosphere in subsequent turns
-
-Each turn uses the session file, so the model sees and builds on previous results.
-
 ### Character Consistency
 
 - Establish the character with maximum detail in the first prompt: face structure, hair, distinguishing features, clothing
@@ -141,29 +174,33 @@ Each turn uses the session file, so the model sees and builds on previous result
 - Change one element per turn (background OR lighting OR outfit, not all three)
 - If features drift after several iterations, restart the session with the detailed character description and a reference image from the best earlier generation
 - For multi-panel work, create a character reference sheet (neutral pose, front-facing, clean lighting) and include it as input with every generation
+- Generate multi-view references as separate images. Requesting multiple views in a single image (front and side, front and back) causes inconsistency between views. Generate each view independently for reliable results.
 
-### Multi-Image Reference (Pro Model)
+### Multi-Image Reference
 
-Pro supports up to 14 reference images per prompt. Use cases:
+Flash 3.1 and Pro support up to 14 reference images per prompt. Flash 2.5 supports up to 3. Use cases:
+
 - Up to 6 images for object fidelity (product from multiple angles)
 - Up to 5 images for character consistency across scenes
 - Style references: provide 2-3 examples of the target aesthetic
 
 ### Text Rendering
 
-Pro model has under 10% error rate for single-line text. For best results:
+Flash 3.1 handles single-line text reasonably well. Pro is more reliable for multi-line layouts or when exact text accuracy is critical. For best results:
+
 - Specify exact text in quotes
 - Describe font characteristics rather than naming fonts: "bold condensed sans-serif," "elegant flowing script"
 - Specify placement: "centered in the upper third," "along the bottom edge"
 - Specify color with hex codes
 - Keep text simple; complex multi-line layouts may need iteration
-- Flash can render text but is less reliable
+- If Flash produces text errors (wrong letters, missing words), try once more with the text re-emphasized before switching to Pro
 
 ## Anti-Patterns
 
 ### Diffusion Model Conventions
 
 These are meaningless or harmful to the language model:
+
 - Quality tags: "4k, masterpiece, best quality, hyperrealistic, trending on artstation"
 - Weight syntax: `(word:1.5)`, `[word]`, `{word}`
 - Parameter syntax: "steps: 50, CFG: 7.5, sampler: euler"
@@ -185,62 +222,13 @@ Editing multiple elements in one turn increases drift. Faces are especially sens
 
 The model generates something new with every call. Without explicit consistency measures (reference images, session continuity, detailed character descriptions), faces and details will vary between generations.
 
-## Model Behavior and Escalation
-
-### General Guidance (All Models)
-
-**Generate multi-view references as separate images.** Requesting multiple views of the same character in a single image (front and side, front and back) causes inconsistency between views. Clothing details, proportions, and accessories will differ between the two figures. Generate each view as its own image for reliable results.
-
-**Know when to abandon a session chain.** Session iteration works well for incremental refinements, but long chains accumulate drift. Details established early (boot size, color choices, proportions) can silently regress as the conversation grows. If you notice the model "forgetting" established details after 3-4 turns, start a fresh generation with a complete prompt rather than continuing to correct within the session. Carry forward the language that worked, not the session history.
-
-**Re-emphasize critical details in every prompt.** Whether iterating in a session or starting fresh, do not assume the model remembers constraints from earlier turns. If boot size matters, describe the boots in every prompt. Repetition is not redundant; it is how you maintain consistency.
-
-**Use escalation, not repetition.** If Flash fails at something twice with different phrasings, the third attempt is unlikely to succeed. Switch to Pro for that specific task rather than grinding against a model limitation.
-
-### Flash-Specific Behavior
-
-Flash is fast and cost-effective for exploration and iteration. It handles overall composition, silhouette, mood, and style well. It has specific limitations:
-
-**Binary response to subtle effects.** Flash struggles with "just a little" of something. Requesting a small amount of mud, light weathering, faint stains, or subtle dirt tends to produce either an extreme version or nothing at all. There is no reliable middle ground. If the effect needs to be subtle, either omit it from Flash generations and handle it downstream (texturing, post-processing), or escalate to Pro.
-
-**Detail drift in session chains.** Specific details like boot size, accessory placement, and color choices can regress toward generic defaults across session turns, even when the session file preserves context. This is distinct from the general drift noted above; Flash seems more prone to it than the general case.
-
-**Multi-view consistency.** Flash cannot maintain detail consistency across multiple figures in a single image. This is the main driver of the "separate images" guidance above. When asked for two views of the same character, Flash will produce two plausible but different interpretations.
-
-### Pro-Specific Behavior
-
-Pro costs more and generates slower, but handles precision tasks that Flash cannot.
-
-**Graduated and subtle effects.** Pro can render "just a little" mud, slight weathering, and other graduated effects that Flash treats as binary. When a specific controlled amount of a visual effect is needed, Pro is the right choice.
-
-**Editing fidelity.** Pro preserves more of the source image during edits. Clothing, proportions, and pose remain more stable through edit passes. In a test removing a large jacket from a character, Pro preserved the face, hair, expression, dark circles, and rendering style exactly. Flash given the same prompt and input produced a noticeably different person with changed hair, lost expression detail, and a flatter rendering style.
-
-**Identity preservation during structural edits.** Pro can remove or replace major garments while keeping the character recognizable. Flash tends to regenerate the character from scratch when the edit is large enough, losing distinguishing features in the process.
-
-**Hypothesis: model self-consistency in editing.** The editing fidelity gap may partly stem from each model's familiarity with its own output. The test above used a Pro-generated image as input. Pro may be better at deconstructing and reconstructing images it produced because it has an internal understanding of how they were built. Flash, working with an image from a different generation process, must infer structure from pixels alone and fills latent gaps with its own defaults. This predicts that Flash editing Flash-generated images should outperform Flash editing Pro-generated images, and vice versa. Untested, but the practical implication is clear: pick your model early and stay with it through an editing chain rather than switching mid-session.
-
-Pro-specific limitations are less documented. This section will expand with testing. Known from Gemini documentation: Pro supports higher resolution output (2K/4K), more reference images (up to 14), and more reliable text rendering.
-
-### Escalation Strategy
-
-Start with Flash for creative exploration, design iteration, and establishing direction. Escalate to Pro when:
-- Flash produces binary results on a detail that needs subtlety
-- You need a precise, controlled edit to a locked design
-- Text rendering accuracy matters
-- You need more than 3 reference images
-- Previous Flash attempts have failed twice on the same specific requirement
-
-Avoid switching models mid-chain. Editing fidelity may depend partly on model self-consistency (see Pro-Specific Behavior). If a design was established in Pro, continue editing in Pro. If exploring in Flash, iterate in Flash.
-
-This is not a quality hierarchy. Flash produces excellent results for the tasks it handles well. Pro earns its cost on precision and control, not general quality.
-
 ## Safety Filter Notes
 
 The model blocks content involving minors in unsafe contexts, violence, hate speech, and explicit material. It also blocks photorealistic depictions of identifiable real people.
 
 False positives happen. Strategies for legitimate content that triggers filters:
+
 - Add context: "family-friendly poster," "educational chemistry diagram," "medical illustration"
 - Crop input images tighter to reduce incidental flagged content
 - Rephrase ambiguous terms: "kill the process" can trigger violence filters; "terminate the process" may not
 - Retry with slight rephrasing; the filter has some randomness
-- Lower the safety threshold for only the specific category that is firing, keeping others at default

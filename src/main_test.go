@@ -513,75 +513,104 @@ func TestLoadSession(t *testing.T) {
 	}
 }
 
-func TestThoughtSignatureRoundTrip(t *testing.T) {
-	// Simulate a Flash 3.1 response history with thought parts and signatures.
-	// This mirrors what chat.History(true) returns after a generation call.
+func TestCleanHistoryForResume(t *testing.T) {
 	sig := []byte("opaque-signature-bytes-from-api")
 
-	original := sessionData{
-		Model: "flash-3.1",
-		History: []*genai.Content{
-			// User turn: text prompt + inline image
+	t.Run("drops unsigned parts from model turns with signatures", func(t *testing.T) {
+		history := []*genai.Content{
 			{Role: "user", Parts: []*genai.Part{
 				{Text: "edit this image"},
-				{InlineData: &genai.Blob{MIMEType: "image/png", Data: []byte("fake-png")}},
 			}},
-			// Model turn: thought part with signature, then text, then image output
 			{Role: "model", Parts: []*genai.Part{
-				{Text: "Let me think about this...", Thought: true, ThoughtSignature: sig},
 				{Text: "Here is your edited image"},
-				{InlineData: &genai.Blob{MIMEType: "image/png", Data: []byte("fake-output")}},
+				{InlineData: &genai.Blob{MIMEType: "image/png", Data: []byte("fake-output")}, ThoughtSignature: sig},
 			}},
-		},
-	}
+		}
 
-	// Marshal (what run() does when saving)
-	data, err := json.Marshal(original)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
+		cleanHistoryForResume(history)
 
-	// Unmarshal (what readSession does when loading)
-	var loaded sessionData
-	if err := json.Unmarshal(data, &loaded); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
+		// User turn untouched
+		if len(history[0].Parts) != 1 {
+			t.Fatalf("user parts = %d, want 1", len(history[0].Parts))
+		}
 
-	if len(loaded.History) != 2 {
-		t.Fatalf("history length = %d, want 2", len(loaded.History))
-	}
+		// Model turn: unsigned text dropped, signed image kept
+		modelParts := history[1].Parts
+		if len(modelParts) != 1 {
+			t.Fatalf("model parts = %d, want 1", len(modelParts))
+		}
+		if modelParts[0].InlineData == nil {
+			t.Error("remaining part should be the image")
+		}
+		if modelParts[0].ThoughtSignature == nil {
+			t.Error("image part should keep its ThoughtSignature")
+		}
+	})
 
-	modelParts := loaded.History[1].Parts
-	if len(modelParts) != 3 {
-		t.Fatalf("model parts = %d, want 3", len(modelParts))
-	}
+	t.Run("leaves model turns without any signatures alone", func(t *testing.T) {
+		history := []*genai.Content{
+			{Role: "model", Parts: []*genai.Part{
+				{Text: "Here is your image"},
+				{InlineData: &genai.Blob{MIMEType: "image/png", Data: []byte("img")}},
+			}},
+		}
 
-	// Thought part: verify Thought flag and ThoughtSignature survive
-	thoughtPart := modelParts[0]
-	if !thoughtPart.Thought {
-		t.Error("thought part lost Thought=true flag")
-	}
-	if !bytes.Equal(thoughtPart.ThoughtSignature, sig) {
-		t.Errorf("ThoughtSignature = %v, want %v", thoughtPart.ThoughtSignature, sig)
-	}
+		cleanHistoryForResume(history)
 
-	// Non-thought text part: should have no thought fields
-	textPart := modelParts[1]
-	if textPart.Thought {
-		t.Error("text part should not have Thought=true")
-	}
-	if textPart.ThoughtSignature != nil {
-		t.Error("text part should not have ThoughtSignature")
-	}
+		if len(history[0].Parts) != 2 {
+			t.Fatalf("parts = %d, want 2 (no signatures, no change)", len(history[0].Parts))
+		}
+	})
 
-	// Verify the JSON contains expected fields
-	jsonStr := string(data)
-	if !strings.Contains(jsonStr, "thought") {
-		t.Error("JSON should contain 'thought' field")
-	}
-	if !strings.Contains(jsonStr, "thoughtSignature") {
-		t.Error("JSON should contain 'thoughtSignature' field")
-	}
+	t.Run("keeps thought parts that carry signatures", func(t *testing.T) {
+		history := []*genai.Content{
+			{Role: "model", Parts: []*genai.Part{
+				{Text: "thinking...", Thought: true, ThoughtSignature: sig},
+				{Text: "commentary"},
+				{InlineData: &genai.Blob{MIMEType: "image/png", Data: []byte("img")}, ThoughtSignature: sig},
+			}},
+		}
+
+		cleanHistoryForResume(history)
+
+		if len(history[0].Parts) != 2 {
+			t.Fatalf("parts = %d, want 2 (thought + image, both signed)", len(history[0].Parts))
+		}
+	})
+
+	t.Run("loadSession cleans history on load", func(t *testing.T) {
+		sess := sessionData{
+			Model: testFlashName,
+			History: []*genai.Content{
+				{Role: "user", Parts: []*genai.Part{{Text: "draw something"}}},
+				{Role: "model", Parts: []*genai.Part{
+					{Text: "Here you go"},
+					{InlineData: &genai.Blob{MIMEType: "image/png", Data: []byte("img")}, ThoughtSignature: sig},
+				}},
+			},
+		}
+		data, err := json.Marshal(sess)
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		path := filepath.Join(t.TempDir(), "test.session.json")
+		if err := os.WriteFile(path, data, 0644); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+
+		history, err := loadSession(path, testFlashName)
+		if err != nil {
+			t.Fatalf("loadSession: %v", err)
+		}
+
+		modelParts := history[1].Parts
+		if len(modelParts) != 1 {
+			t.Fatalf("model parts = %d, want 1 (image only)", len(modelParts))
+		}
+		if !bytes.Equal(modelParts[0].ThoughtSignature, sig) {
+			t.Error("image ThoughtSignature should be preserved")
+		}
+	})
 }
 
 func TestExtractResult(t *testing.T) {
