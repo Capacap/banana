@@ -88,6 +88,7 @@ type options struct {
 }
 
 const usageText = `usage: banana -p <prompt> -o <output> [flags]
+       banana transform -i <input> -o <output> [-f] <operation> [args]
        banana meta <image.png>
        banana cost <session-file-or-directory>
        banana clean [-f] <directory>
@@ -103,9 +104,10 @@ flags:
   -f   overwrite existing output and session files
 
 subcommands:
-  meta    show metadata embedded in a generated PNG
-  cost    estimate API cost from session files
-  clean   find and remove session files from a directory`
+  transform  flip, rotate, or resize an image locally (no API call)
+  meta       show metadata embedded in a generated PNG
+  cost       estimate API cost from session files
+  clean      find and remove session files from a directory`
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -129,6 +131,8 @@ func run(args []string) error {
 		return runCost(args[1:])
 	case "meta":
 		return runMeta(args[1:])
+	case "transform":
+		return runTransform(args[1:])
 	}
 
 	opts, err := parseAndValidateFlags(args)
