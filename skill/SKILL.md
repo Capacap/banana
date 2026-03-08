@@ -74,6 +74,22 @@ banana cost <directory>         # summarize all sessions in a directory
 
 Estimate API cost from session files using a hard-coded snapshot of published Gemini API pricing. Exact prices may be outdated.
 
+### transform
+
+```
+banana transform -i <input> -o <output> [-f] <operation> [args]
+```
+
+Flip, rotate, or resize an image locally without calling the Gemini API. Input and output must both be `.png`. Existing banana metadata is preserved through the transform.
+
+Operations:
+- `flip-h` — horizontal flip (mirror)
+- `flip-v` — vertical flip
+- `rotate 90|180|270` — clockwise rotation
+- `resize WxH|Wx|xH` — resize to exact dimensions, or proportionally by specifying only width (`800x`) or height (`x600`)
+
+Resize uses CatmullRom interpolation. Use `-f` to overwrite an existing output file.
+
 ## Gemini Image Models
 
 More well-known under the alias 'Nano Banana', the Gemini Image models are a family of language models that generate images as part of their token sequence. They are not diffusion models. They parse grammar, understand spatial relationships, and reason about composition.
