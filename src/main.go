@@ -31,7 +31,7 @@ const pricesCollected = "2026-02-26"
 var modelDefs = map[string]modelDef{
 	"flash-2.5": {ID: "gemini-2.5-flash-image", Family: "flash", MaxInputImages: 3, InputPerMTok: 0.30, OutputPerMTok: 0.60, Sizes: []string{"1K"}, ImagePrices: map[string]float64{"1K": 0.039}},
 	"flash-3.1": {ID: "gemini-3.1-flash-image-preview", Family: "flash", MaxInputImages: 14, InputPerMTok: 0.25, OutputPerMTok: 1.50, Sizes: []string{"1K", "2K", "4K"}, ImagePrices: map[string]float64{"1K": 0.067, "2K": 0.101, "4K": 0.151}, ThinkingLevels: []string{"min", "high"}},
-	"pro-3.0":   {ID: "gemini-3-pro-image-preview", Family: "pro", MaxInputImages: 14, InputPerMTok: 2.00, OutputPerMTok: 12.00, Sizes: []string{"1K", "2K", "4K"}, ImagePrices: map[string]float64{"1K": 0.134, "2K": 0.134, "4K": 0.240}, ThinkingLevels: []string{"min", "high"}},
+	"pro-3.0":   {ID: "gemini-3-pro-image-preview", Family: "pro", MaxInputImages: 14, InputPerMTok: 2.00, OutputPerMTok: 12.00, Sizes: []string{"1K", "2K", "4K"}, ImagePrices: map[string]float64{"1K": 0.134, "2K": 0.134, "4K": 0.240}},
 }
 
 var modelAliases = map[string]string{
@@ -103,7 +103,7 @@ flags:
   -m   model: flash (default), pro, flash-2.5, flash-3.1, pro-3.0
   -r   aspect ratio: 1:1 (default), 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9
   -z   output size: 1K, 2K, 4K (flash-3.1, pro-3.0)
-  -t   thinking level: min (default), high (flash-3.1, pro-3.0)
+  -t   thinking level: min (default), high (flash-3.1)
   -f   overwrite existing output and session files
 
 subcommands:
@@ -187,7 +187,7 @@ func run(args []string) error {
 		},
 	}
 
-	if opts.thinking != "" {
+	if opts.thinking != "" && len(modelDefs[opts.model].ThinkingLevels) > 0 {
 		level := genai.ThinkingLevelMinimal
 		if opts.thinking == "high" {
 			level = genai.ThinkingLevelHigh
@@ -281,7 +281,7 @@ func parseAndValidateFlags(args []string) (*options, error) {
 	model := fs.String("m", "flash", "model name")
 	ratio := fs.String("r", "", "aspect ratio: 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9")
 	size := fs.String("z", "", "output size: 1K, 2K, or 4K (flash-3.1, pro-3.0)")
-	thinking := fs.String("t", "", "thinking level: min or high (flash-3.1, pro-3.0)")
+	thinking := fs.String("t", "", "thinking level: min or high (flash-3.1)")
 	force := fs.Bool("f", false, "overwrite output and session files if they exist")
 
 	if err := fs.Parse(args); err != nil {

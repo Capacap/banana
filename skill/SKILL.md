@@ -23,7 +23,7 @@ Send instructions to Gemini Image models, outputs a PNG and a JSON session file.
 | `-m` | no | Model: `flash` (default), `pro`, `flash-2.5`, `flash-3.1`, `pro-3.0` |
 | `-r` | no | Aspect ratio (default `1:1`): `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `9:16`, `16:9`, `21:9` |
 | `-z` | no | Output size: `1K`, `2K`, or `4K` (`flash-3.1`, `pro-3.0` only) |
-| `-t` | no | Thinking level: `min` (default), `high` (`flash-3.1`, `pro-3.0` only) |
+| `-t` | no | Thinking level: `min` (default), `high` (`flash-3.1` only) |
 | `-f` | no | Overwrite output and session files if they already exist |
 
 Pass `-i` multiple times for multiple reference images. Each file must be under 7 MB. Model-specific limits:
@@ -37,7 +37,7 @@ The `-r` flag sets the aspect ratio for the generated image. The default is `1:1
 
 The `-z` flag controls output resolution. Only available on models with resolution support (`flash-3.1`, `pro-3.0`). Options: `1K`, `2K`, `4K`. Defaults to `1K` when omitted.
 
-The `-t` flag controls how much the model reasons before generating. `min` (the default) is faster and cheaper. `high` makes the model think more deeply about the prompt, which can improve adherence to complex instructions at the cost of higher latency and token usage. Only available on `flash-3.1` and `pro-3.0`.
+The `-t` flag controls how much the model reasons before generating. `min` (the default) is faster and cheaper. `high` makes the model think more deeply about the prompt, which can improve adherence to complex instructions at the cost of higher latency and token usage. Only available on `flash-3.1`.
 
 ### Session files
 

@@ -61,7 +61,7 @@ banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ra
 | `-m` | no | Model: `flash` (default), `pro`, `flash-2.5`, `flash-3.1`, `pro-3.0` |
 | `-r` | no | Aspect ratio (default `1:1`). Options: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `9:16`, `16:9`, `21:9` |
 | `-z` | no | Output resolution: `1K`, `2K`, or `4K` (`flash-3.1`, `pro-3.0`) |
-| `-t` | no | Thinking level: `min` (default), `high` (`flash-3.1`, `pro-3.0`) |
+| `-t` | no | Thinking level: `min` (default), `high` (`flash-3.1` only) |
 | `-f` | no | Overwrite output and session files if they already exist |
 
 Pass `-i` multiple times to provide several reference images. Flash 2.5 supports up to 3 input images; Flash 3.1 and Pro support up to 14. Each input file must be under 7 MB. The CLI checks for `GOOGLE_API_KEY` at startup and exits with a clear error if it is missing. Run `banana help` to see usage information.
@@ -141,7 +141,7 @@ For `resize`, specifying only width (`800x`) or only height (`x600`) scales the 
 |-------|------|------------|--------------------|------------------|
 | Gemini 3.1 Flash Image Preview | `-m flash` (default), `-m flash-3.1` | 14 | Yes (`-z 1K\|2K\|4K`) | Yes (`-t min\|high`) |
 | Gemini 2.5 Flash Image | `-m flash-2.5` | 3 | No | No |
-| Gemini 3 Pro Image Preview | `-m pro`, `-m pro-3.0` | 14 | Yes (`-z 1K\|2K\|4K`) | Yes (`-t min\|high`) |
+| Gemini 3 Pro Image Preview | `-m pro`, `-m pro-3.0` | 14 | Yes (`-z 1K\|2K\|4K`) | No |
 
 `flash` and `pro` are aliases that always point to the latest version in their family. Use a pinned name (`flash-2.5`, `flash-3.1`, `pro-3.0`) to lock to a specific model version. This matters when a model's particular rendering style is desirable, since different versions have different artistic tendencies.
 
