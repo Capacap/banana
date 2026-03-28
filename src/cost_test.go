@@ -231,7 +231,7 @@ func TestAnalyzeSession(t *testing.T) {
 				os.WriteFile(p, []byte(`{"model":"flash"}`), 0644)
 				return p
 			},
-			wantErr: "not a banana session",
+			wantErr: "not an agentpix session",
 		},
 	}
 

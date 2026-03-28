@@ -89,11 +89,11 @@ type options struct {
 	force    bool
 }
 
-const usageText = `usage: banana -p <prompt> -o <output> [flags]
-       banana transform -i <input> -o <output> [-f] <operation> [args]
-       banana meta <image.png>
-       banana cost <session-file-or-directory>
-       banana clean [-f] <directory>
+const usageText = `usage: agentpix -p <prompt> -o <output> [flags]
+       agentpix transform -i <input> -o <output> [-f] <operation> [args]
+       agentpix meta <image.png>
+       agentpix cost <session-file-or-directory>
+       agentpix clean [-f] <directory>
 
 flags:
   -p   text prompt (required)
@@ -270,7 +270,7 @@ func run(args []string) error {
 }
 
 func parseAndValidateFlags(args []string) (*options, error) {
-	fs := flag.NewFlagSet("banana", flag.ContinueOnError)
+	fs := flag.NewFlagSet("agentpix", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	prompt := fs.String("p", "", "text prompt (required)")
@@ -285,15 +285,15 @@ func parseAndValidateFlags(args []string) (*options, error) {
 	force := fs.Bool("f", false, "overwrite output and session files if they exist")
 
 	if err := fs.Parse(args); err != nil {
-		return nil, fmt.Errorf("usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]")
+		return nil, fmt.Errorf("usage: agentpix -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]")
 	}
 
 	if fs.NArg() > 0 {
-		return nil, fmt.Errorf("unexpected arguments: %s\nusage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]", strings.Join(fs.Args(), " "))
+		return nil, fmt.Errorf("unexpected arguments: %s\nusage: agentpix -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]", strings.Join(fs.Args(), " "))
 	}
 
 	if strings.TrimSpace(*prompt) == "" || *output == "" {
-		return nil, fmt.Errorf("usage: banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]")
+		return nil, fmt.Errorf("usage: agentpix -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-f]")
 	}
 
 	resolved := *model

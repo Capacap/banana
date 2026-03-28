@@ -15,7 +15,7 @@ import (
 	"golang.org/x/image/draw"
 )
 
-const transformUsage = `usage: banana transform -i <input> -o <output> [-f] <operation> [args]
+const transformUsage = `usage: agentpix transform -i <input> -o <output> [-f] <operation> [args]
 
 operations:
   flip-h              horizontal flip (mirror)
@@ -24,7 +24,7 @@ operations:
   resize <spec>       resize: WxH, Wx (proportional height), xH (proportional width)`
 
 func runTransform(args []string) error {
-	fs := flag.NewFlagSet("banana transform", flag.ContinueOnError)
+	fs := flag.NewFlagSet("agentpix transform", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	input := fs.String("i", "", "input PNG file")

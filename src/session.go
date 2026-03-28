@@ -43,7 +43,7 @@ func readSession(path string) (*sessionData, int64, error) {
 		return nil, 0, fmt.Errorf("failed to parse %q: %v", path, err)
 	}
 	if sess.History == nil {
-		return nil, 0, fmt.Errorf("%q is not a banana session", path)
+		return nil, 0, fmt.Errorf("%q is not an agentpix session", path)
 	}
 	return &sess, info.Size(), nil
 }

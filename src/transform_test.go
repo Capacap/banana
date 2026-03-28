@@ -219,7 +219,7 @@ func TestRunTransformPreservesMetadata(t *testing.T) {
 	input := filepath.Join(dir, "input.png")
 	output := filepath.Join(dir, "output.png")
 
-	// Create a PNG with embedded banana metadata.
+	// Create a PNG with embedded agentpix metadata.
 	var buf bytes.Buffer
 	png.Encode(&buf, testImage(4, 4))
 	tagged, err := pngSetText(buf.Bytes(), metadataKey, `{"model":"flash"}`)

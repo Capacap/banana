@@ -1,4 +1,4 @@
-NAME    = banana
+NAME    = agentpix
 SRC     = ./src
 DIST    = ./dist
 SKILL   = ./skill

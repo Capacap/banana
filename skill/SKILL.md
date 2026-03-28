@@ -1,15 +1,20 @@
-# Banana Image Generation CLI Tool
+---
+name: agentpix
+description: Generate or edit images using Gemini's native image generation. Use when the user wants to create, edit, or transform images, or references agentpix or image generation.
+---
 
-You have access to the banana CLI tool for sending image creation and editing requests to the Google Gemini Image models through the Gemini API. Follow these guidelines for effective application of the tool in creative tasks.
+# Agentpix Image Generation CLI Tool
 
-## Banana CLI Reference
+You have access to the agentpix CLI tool for sending image creation and editing requests to the Google Gemini Image models through the Gemini API. Follow these guidelines for effective application of the tool in creative tasks.
 
-The banana binary lives in this skill's directory, not on PATH. Construct the binary path from the skill location provided by the system when this skill was invoked.
+## Agentpix CLI Reference
+
+The agentpix binary lives in this skill's directory, not on PATH. Construct the binary path from the skill location provided by the system when this skill was invoked.
 
 ### Primary Command
 
 ```
-banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-t min|high] [-f]
+agentpix -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-t min|high] [-f]
 ```
 
 Send instructions to Gemini Image models, outputs a PNG and a JSON session file. Output is always PNG. The Gemini API returns PNG data; other output formats are not supported.
@@ -54,16 +59,16 @@ When continuing a session, the tool will automatically reuse the session's last 
 ### meta
 
 ```
-banana meta <image.png>
+agentpix meta <image.png>
 ```
 
-Show metadata embedded in a generated PNG. Non-PNG files and PNGs without banana metadata produce distinct error messages.
+Show metadata embedded in a generated PNG. Non-PNG files and PNGs without agentpix metadata produce distinct error messages.
 
 ### clean
 
 ```
-banana clean <directory>        # dry run: list files with details
-banana clean -f <directory>     # delete validated session files
+agentpix clean <directory>        # dry run: list files with details
+agentpix clean -f <directory>     # delete validated session files
 ```
 
 Find and remove session files from a directory. Scans non-recursively. Files that fail validation (corrupt JSON, unknown structure) are skipped with a warning and never deleted.
@@ -71,8 +76,8 @@ Find and remove session files from a directory. Scans non-recursively. Files tha
 ### cost
 
 ```
-banana cost <session-file>      # single session breakdown
-banana cost <directory>         # summarize all sessions in a directory
+agentpix cost <session-file>      # single session breakdown
+agentpix cost <directory>         # summarize all sessions in a directory
 ```
 
 Estimate API cost from session files using a hard-coded snapshot of published Gemini API pricing. Exact prices may be outdated.
@@ -80,10 +85,10 @@ Estimate API cost from session files using a hard-coded snapshot of published Ge
 ### transform
 
 ```
-banana transform -i <input> -o <output> [-f] <operation> [args]
+agentpix transform -i <input> -o <output> [-f] <operation> [args]
 ```
 
-Flip, rotate, or resize an image locally without calling the Gemini API. Input and output must both be `.png`. Existing banana metadata is preserved through the transform.
+Flip, rotate, or resize an image locally without calling the Gemini API. Input and output must both be `.png`. Existing agentpix metadata is preserved through the transform.
 
 Operations:
 - `flip-h` — horizontal flip (mirror)
@@ -220,7 +225,7 @@ Every generation follows the same cycle: assess, compose, execute, diagnose. The
 1. **Assess.** Determine what this generation needs to accomplish and how to approach it. On the first generation, this means understanding the user's goal. On subsequent generations, it means identifying what changed: the user gave feedback, the diagnosis found drift, the concept evolved. Then choose the approach: fresh generation, image inputs, session continuation, or a combination. The Workflow Patterns section has heuristics for when each applies.
 2. **Compose.** Write the prompt, and optionally pick out reference materials. For fresh generation, write a full scene description following the element ordering described by the Prompting for Image Creation section. For session continuation, write a short directive about what to change. For image inputs, write instructions for how the inputs should be used or transformed.
 3. **Verify.** Critique the prompt. Compare the prompt to this skill's guidance and the user's preferences to maximize the chance of success.
-4. **Execute.** Run the banana command. Match the aspect ratio to the subject's proportions in the target view, not to convention or habit. A horizontal creature needs a landscape ratio even for a front view. Reconsider the ratio when the subject or composition changes, not only at the start of a project.
+4. **Execute.** Run the agentpix command. Match the aspect ratio to the subject's proportions in the target view, not to convention or habit. A horizontal creature needs a landscape ratio even for a front view. Reconsider the ratio when the subject or composition changes, not only at the start of a project.
 5. **Diagnose.** Load the generated image using the Read tool so you can see it. The user views images independently using their own image viewer. Diagnosis is mandatory on every generation.
 
 LLM image analysis is unreliable for evaluating generation quality. Confirmation bias (seeing what the prompt described rather than what the image contains) is a persistent failure mode that self-awareness does not fix. The user's eyes are the authoritative evaluation tool. Hand diagnosis to the user through targeted questions.

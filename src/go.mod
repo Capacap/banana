@@ -1,4 +1,4 @@
-module banana
+module agentpix
 
 go 1.25.0
 

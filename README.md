@@ -1,4 +1,4 @@
-# banana
+# agentpix
 
 An image generation and editing skill for AI coding agents. Ships as a single static binary with no runtime dependencies, so any agent harness that can execute a shell command can use it.
 
@@ -6,9 +6,9 @@ The CLI wraps Google's Gemini native image generation API. It was built in Go sp
 
 ## What's in the box
 
-A release zip extracts to a single `banana/` directory containing two files:
+A release zip extracts to a single `agentpix/` directory containing two files:
 
-- **`banana`** (or `banana.exe`) - CLI binary that handles Gemini API calls, local image transforms, session persistence, and image I/O.
+- **`agentpix`** (or `agentpix.exe`) - CLI binary that handles Gemini API calls, local image transforms, session persistence, and image I/O.
 - **`SKILL.md`** - Skill file that teaches the agent how to use the binary: prompt construction, model selection, iterative refinement, and local transforms.
 
 Claude Code is the first-class target, but nothing here is Claude-specific. Any agent framework that supports tool/skill definitions and shell execution (Codex, etc.) can use this with appropriate skill file adaptation.
@@ -23,12 +23,12 @@ export GOOGLE_API_KEY=your-key-here
 
 ### Install from a release zip
 
-1. Download the zip for your platform from [releases](https://github.com/Capacap/banana/releases).
-2. Extract it. You'll get a `banana/` directory containing the binary and skill files.
+1. Download the zip for your platform from [releases](https://github.com/Capacap/agentpix/releases).
+2. Extract it. You'll get a `agentpix/` directory containing the binary and skill files.
 3. Move that directory into your Claude Code skills folder:
 
 ```
-mv banana/ ~/.claude/skills/banana/
+mv agentpix/ ~/.claude/skills/agentpix/
 ```
 
 No PATH modification is needed. The agent resolves the binary from the skill directory path provided at invocation.
@@ -44,12 +44,12 @@ make release    # cross-compiles six platform zips into dist/
 
 ### Uninstall
 
-Delete `~/.claude/skills/banana/` (or wherever you placed it). Optionally remove `GOOGLE_API_KEY` from your environment. That's it.
+Delete `~/.claude/skills/agentpix/` (or wherever you placed it). Optionally remove `GOOGLE_API_KEY` from your environment. That's it.
 
 ## CLI reference
 
 ```
-banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-t min|high] [-f]
+agentpix -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ratio>] [-z 1K|2K|4K] [-t min|high] [-f]
 ```
 
 | Flag | Required | Description |
@@ -64,7 +64,7 @@ banana -p <prompt> -o <output> [-i <input>...] [-s <session>] [-m model] [-r <ra
 | `-t` | no | Thinking level: `min` (default), `high` (`flash-3.1` only) |
 | `-f` | no | Overwrite output and session files if they already exist |
 
-Pass `-i` multiple times to provide several reference images. Flash 2.5 supports up to 3 input images; Flash 3.1 and Pro support up to 14. Each input file must be under 7 MB. The CLI checks for `GOOGLE_API_KEY` at startup and exits with a clear error if it is missing. Run `banana help` to see usage information.
+Pass `-i` multiple times to provide several reference images. Flash 2.5 supports up to 3 input images; Flash 3.1 and Pro support up to 14. Each input file must be under 7 MB. The CLI checks for `GOOGLE_API_KEY` at startup and exits with a clear error if it is missing. Run `agentpix help` to see usage information.
 
 ### Sessions
 
@@ -77,7 +77,7 @@ Without `-f`, the CLI refuses to write if the output or session file already exi
 Generated PNGs carry embedded metadata in a `tEXt` chunk recording the schema version, model name and ID, aspect ratio, output size (when `-z` is used), input file names, session source, timestamp, and prompt history. The `meta` subcommand reads and displays this data.
 
 ```
-banana meta <image.png>
+agentpix meta <image.png>
 ```
 
 Example output:
@@ -99,8 +99,8 @@ Fields like `size`, `thinking`, `inputs`, and `session` appear when applicable. 
 Session files accumulate during iterative work. The `clean` subcommand scans a directory (non-recursively) for session files, validates them, and reports what it finds.
 
 ```
-banana clean <directory>        # dry run: list files and sizes
-banana clean -f <directory>     # delete validated session files
+agentpix clean <directory>        # dry run: list files and sizes
+agentpix clean -f <directory>     # delete validated session files
 ```
 
 Without `-f`, nothing is deleted. The listing shows file path, model, turn count, and size for each file. Files that fail validation (corrupt JSON, unknown structure) are skipped with a warning and never deleted.
@@ -110,8 +110,8 @@ Without `-f`, nothing is deleted. The listing shows file path, model, turn count
 The `cost` subcommand estimates API cost from session files using published Gemini pricing.
 
 ```
-banana cost <session-file>      # single session breakdown
-banana cost <directory>         # summarize all sessions in a directory
+agentpix cost <session-file>      # single session breakdown
+agentpix cost <directory>         # summarize all sessions in a directory
 ```
 
 Single-file output shows model, turn count, token usage with costs, image count, and total. Directory output lists each session with a per-session cost and a grand total. Sessions created before usage tracking (or with unrecognized models) show partial data.
@@ -120,10 +120,10 @@ Pricing is based on published rates as of 2026-02-26. Image costs use the sessio
 
 ### Transform
 
-The `transform` subcommand performs local image operations without calling the Gemini API. It reads a PNG, applies a transformation, and writes the result as a new PNG. Existing banana metadata embedded in the input is preserved through the transform.
+The `transform` subcommand performs local image operations without calling the Gemini API. It reads a PNG, applies a transformation, and writes the result as a new PNG. Existing agentpix metadata embedded in the input is preserved through the transform.
 
 ```
-banana transform -i <input> -o <output> [-f] <operation> [args]
+agentpix transform -i <input> -o <output> [-f] <operation> [args]
 ```
 
 | Operation | Arguments | Description |

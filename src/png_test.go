@@ -124,7 +124,7 @@ func TestPngHasSignature(t *testing.T) {
 
 func TestPngSetGetRoundTrip(t *testing.T) {
 	png := minimalPNG()
-	modified, err := pngSetText(png, "banana", `{"model":"flash"}`)
+	modified, err := pngSetText(png, "agentpix", `{"model":"flash"}`)
 	if err != nil {
 		t.Fatalf("pngSetText: %v", err)
 	}
@@ -140,7 +140,7 @@ func TestPngSetGetRoundTrip(t *testing.T) {
 	}
 
 	// Read it back
-	val, err := pngGetText(modified, "banana")
+	val, err := pngGetText(modified, "agentpix")
 	if err != nil {
 		t.Fatalf("pngGetText: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestPngGetTextMissingKey(t *testing.T) {
 		t.Fatalf("pngSetText: %v", err)
 	}
 
-	_, err = pngGetText(modified, "banana")
+	_, err = pngGetText(modified, "agentpix")
 	if err == nil {
 		t.Fatal("expected error for missing key")
 	}

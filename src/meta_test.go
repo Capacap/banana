@@ -180,7 +180,7 @@ func TestRunMeta(t *testing.T) {
 			Prompts:   []promptEntry{{Role: "user", Text: "a cat"}},
 		}
 		jsonBytes, _ := json.Marshal(meta)
-		embedded, err := pngSetText(png, "banana", string(jsonBytes))
+		embedded, err := pngSetText(png, "agentpix", string(jsonBytes))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -201,7 +201,7 @@ func TestRunMeta(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for PNG without metadata")
 		}
-		if !strings.Contains(err.Error(), "no banana metadata") {
+		if !strings.Contains(err.Error(), "no agentpix metadata") {
 			t.Fatalf("error = %q", err)
 		}
 	})

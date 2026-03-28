@@ -85,7 +85,7 @@ func analyzeSession(path string) (*costBreakdown, error) {
 
 func runCost(args []string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("usage: banana cost <session-file-or-directory>")
+		return fmt.Errorf("usage: agentpix cost <session-file-or-directory>")
 	}
 	target := args[0]
 

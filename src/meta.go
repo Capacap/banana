@@ -12,7 +12,7 @@ import (
 )
 
 const metadataVersion = 1
-const metadataKey = "banana"
+const metadataKey = "agentpix"
 
 type imageMetadata struct {
 	Version   int           `json:"version"`
@@ -99,7 +99,7 @@ func embedMetadata(imageData []byte, meta imageMetadata) []byte {
 
 func runMeta(args []string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("usage: banana meta <image.png>")
+		return fmt.Errorf("usage: agentpix meta <image.png>")
 	}
 	path := args[0]
 
@@ -114,7 +114,7 @@ func runMeta(args []string) error {
 
 	raw, err := pngGetText(data, metadataKey)
 	if err != nil {
-		return fmt.Errorf("no banana metadata found in %q", path)
+		return fmt.Errorf("no agentpix metadata found in %q", path)
 	}
 
 	var meta imageMetadata

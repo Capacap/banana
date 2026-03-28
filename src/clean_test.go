@@ -114,7 +114,7 @@ func TestValidateSessionFile(t *testing.T) {
 				os.WriteFile(p, []byte("{not json"), 0644)
 				return p
 			},
-			wantErr: "not a banana session",
+			wantErr: "not an agentpix session",
 		},
 		{
 			name: "wrong structure missing history",
@@ -123,7 +123,7 @@ func TestValidateSessionFile(t *testing.T) {
 				os.WriteFile(p, []byte(`{"foo":"bar"}`), 0644)
 				return p
 			},
-			wantErr: "not a banana session",
+			wantErr: "not an agentpix session",
 		},
 		{
 			name: "extra fields accepted for forward compatibility",

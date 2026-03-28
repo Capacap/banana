@@ -16,7 +16,7 @@ type sessionInfo struct {
 func validateSessionFile(path string) (*sessionInfo, error) {
 	sess, size, err := readSession(path)
 	if err != nil {
-		return nil, fmt.Errorf("not a banana session: %v", err)
+		return nil, fmt.Errorf("not an agentpix session: %v", err)
 	}
 
 	if sess.Model != "" {
@@ -33,12 +33,12 @@ func validateSessionFile(path string) (*sessionInfo, error) {
 }
 
 func runClean(args []string) error {
-	fs := flag.NewFlagSet("banana clean", flag.ContinueOnError)
+	fs := flag.NewFlagSet("agentpix clean", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	force := fs.Bool("f", false, "delete validated session files (without -f, dry-run only)")
 
-	const usage = "find session files and report sizes (add -f to delete)\nusage: banana clean [-f] <directory>"
+	const usage = "find session files and report sizes (add -f to delete)\nusage: agentpix clean [-f] <directory>"
 
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf(usage)
